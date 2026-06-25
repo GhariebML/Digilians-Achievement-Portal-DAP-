@@ -109,17 +109,109 @@ if (smtpHost && smtpUser && smtpPass) {
   } catch (err) {
     console.error("Failed to initialize SMTP transporter:", err);
   }
-} else {
-  console.log("ℹ️ SMTP credentials not found. Backend running in simulated email mode.");
 }
 
 // ----------------------------------------------------
 const sendMockEmail = async (email, subject, htmlContent) => {
   console.log("==========================================");
-  console.log(`✉️ EMAIL ACTION FOR: ${email}`);
+  console.log(`✉️ EMAIL DISPATCH INITIATED FOR: ${email}`);
   console.log(`Subject: ${subject}`);
   console.log("==========================================");
 
+  // 1. Resend Integration (Preferred)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const from = process.env.RESEND_SENDER || 'onboarding@resend.dev';
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: from,
+          to: email,
+          subject: subject,
+          html: htmlContent
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`✉️ Resend email delivered successfully: ${data.id}`);
+        return true;
+      } else {
+        const errText = await res.text();
+        console.error(`❌ Resend API Error: ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Resend email delivery failed: ${err.message}`);
+    }
+  }
+
+  // 2. SendGrid Integration
+  if (process.env.SENDGRID_API_KEY) {
+    try {
+      const from = process.env.SENDGRID_SENDER || 'no-reply@digilians.gov.eg';
+      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email }] }],
+          from: { email: from, name: 'Digilians Portal' },
+          subject: subject,
+          content: [{ type: 'text/html', value: htmlContent }]
+        })
+      });
+      if (res.ok) {
+        console.log(`✉️ SendGrid email delivered successfully`);
+        return true;
+      } else {
+        const errText = await res.text();
+        console.error(`❌ SendGrid API Error: ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ SendGrid email delivery failed: ${err.message}`);
+    }
+  }
+
+  // 3. Mailgun Integration
+  if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+    try {
+      const from = process.env.MAILGUN_SENDER || `Digilians Portal <postmaster@${process.env.MAILGUN_DOMAIN}>`;
+      const region = process.env.MAILGUN_REGION === 'EU' ? 'api.eu.mailgun.net' : 'api.mailgun.net';
+      const auth = Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64');
+      
+      const form = new URLSearchParams();
+      form.append('from', from);
+      form.append('to', email);
+      form.append('subject', subject);
+      form.append('html', htmlContent);
+
+      const res = await fetch(`https://${region}/v3/${process.env.MAILGUN_DOMAIN}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: form
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`✉️ Mailgun email delivered successfully: ${data.id}`);
+        return true;
+      } else {
+        const errText = await res.text();
+        console.error(`❌ Mailgun API Error: ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Mailgun email delivery failed: ${err.message}`);
+    }
+  }
+
+  // 4. Nodemailer SMTP Fallback
   if (transporter) {
     try {
       const sender = process.env.SMTP_SENDER || `"Digilians Portal" <${smtpUser}>`;
@@ -129,13 +221,18 @@ const sendMockEmail = async (email, subject, htmlContent) => {
         subject: subject,
         html: htmlContent
       });
-      console.log(`✉️ REAL EMAIL DELIVERED successfully: ${info.messageId}`);
+      console.log(`✉️ SMTP email delivered successfully: ${info.messageId}`);
+      return true;
     } catch (err) {
-      console.error(`❌ SMTP delivery failed to ${email}:`, err.message);
+      console.error(`❌ SMTP email delivery failed: ${err.message}`);
     }
-  } else {
-    console.log("[DEV MODE] Real email delivery skipped (SMTP not configured).");
   }
+
+  // 5. Fallback Logger
+  console.log("==========================================");
+  console.log(`✉️ MOCK EMAIL LOGGED (NO REAL PROVIDER CONFIGURED): ${email}`);
+  console.log("==========================================");
+  return false;
 };
 
 const generateOtpEmailHtml = (fullName, otpCode) => {
@@ -357,6 +454,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       otp_id: crypto.randomUUID(),
       user_id: userId,
       otp_code: otpCode,
+      otp_type: 'email_verification',
       expires_at: expiresAt,
       attempts: 0,
       created_at: new Date().toISOString()
@@ -411,10 +509,10 @@ app.post('/api/auth/verify-otp', authLimiter, async (req, res) => {
     // Fetch OTP record
     let otpRecord = null;
     if (!config.isFallbackMode) {
-      const { data } = await supabase.from('otp').select('*').eq('user_id', user.user_id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data } = await supabase.from('otp').select('*').eq('user_id', user.user_id).eq('otp_type', 'email_verification').order('created_at', { ascending: false }).limit(1).maybeSingle();
       otpRecord = data;
     } else {
-      const records = localDb.otp.filter(o => o.user_id === user.user_id);
+      const records = localDb.otp.filter(o => o.user_id === user.user_id && o.otp_type === 'email_verification');
       otpRecord = records.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
     }
 
@@ -550,17 +648,18 @@ app.post('/api/auth/resend-otp', authLimiter, async (req, res) => {
       otp_id: crypto.randomUUID(),
       user_id: user.user_id,
       otp_code: otpCode,
+      otp_type: 'email_verification',
       expires_at: expiresAt,
       attempts: 0,
       created_at: new Date().toISOString()
     };
 
     if (!config.isFallbackMode) {
-      // Clear old OTPs first
-      await supabase.from('otp').delete().eq('user_id', user.user_id);
+      // Clear old verification OTPs first
+      await supabase.from('otp').delete().eq('user_id', user.user_id).eq('otp_type', 'email_verification');
       await supabase.from('otp').insert([newOtp]);
     } else {
-      localDb.otp = localDb.otp.filter(o => o.user_id !== user.user_id);
+      localDb.otp = localDb.otp.filter(o => !(o.user_id === user.user_id && o.otp_type === 'email_verification'));
       localDb.otp.push(newOtp);
       saveLocalDb();
     }
@@ -818,16 +917,17 @@ app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
       otp_id: crypto.randomUUID(),
       user_id: user.user_id,
       otp_code: otpCode,
+      otp_type: 'password_reset',
       expires_at: expiresAt,
       attempts: 0,
       created_at: new Date().toISOString()
     };
 
     if (!config.isFallbackMode) {
-      await supabase.from('otp').delete().eq('user_id', user.user_id);
+      await supabase.from('otp').delete().eq('user_id', user.user_id).eq('otp_type', 'password_reset');
       await supabase.from('otp').insert([newOtp]);
     } else {
-      localDb.otp = localDb.otp.filter(o => o.user_id !== user.user_id);
+      localDb.otp = localDb.otp.filter(o => !(o.user_id === user.user_id && o.otp_type === 'password_reset'));
       localDb.otp.push(newOtp);
       saveLocalDb();
     }
@@ -872,10 +972,10 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
     // Fetch OTP record
     let otpRecord = null;
     if (!config.isFallbackMode) {
-      const { data } = await supabase.from('otp').select('*').eq('user_id', user.user_id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data } = await supabase.from('otp').select('*').eq('user_id', user.user_id).eq('otp_type', 'password_reset').order('created_at', { ascending: false }).limit(1).maybeSingle();
       otpRecord = data;
     } else {
-      const records = localDb.otp.filter(o => o.user_id === user.user_id);
+      const records = localDb.otp.filter(o => o.user_id === user.user_id && o.otp_type === 'password_reset');
       otpRecord = records.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
     }
 

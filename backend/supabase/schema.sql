@@ -28,6 +28,7 @@ CREATE TABLE public.otp (
     otp_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
     otp_code VARCHAR(6) NOT NULL,
+    otp_type TEXT NOT NULL DEFAULT 'email_verification' CHECK (otp_type IN ('email_verification', 'password_reset')),
     expires_at TIMESTAMPTZ NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
