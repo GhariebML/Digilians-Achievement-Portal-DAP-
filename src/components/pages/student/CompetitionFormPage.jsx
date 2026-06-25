@@ -22,7 +22,7 @@ export function CompetitionFormPage() {
     leader_name: currentUser ? currentUser.name : '',
     leader_email: currentUser ? currentUser.email : '',
     leader_phone: '',
-    leader_track: 'AI & Machine Learning',
+    leader_track: 'Applied AI and Data Analytics',
     leader_role: 'Team Leader / Architect',
     // Team Members List
     team_members: []
@@ -34,16 +34,10 @@ export function CompetitionFormPage() {
   const [error, setError] = useState('');
 
   const trackOptions = [
-    'AI & Machine Learning',
+    'Applied AI and Data Analytics',
+    'Cyber Security',
     'Data Science',
-    'Full Stack Development',
-    'Cybersecurity',
-    'FinTech & Blockchain',
-    'Embedded Systems',
-    'Robotics & IoT',
-    'Renewable Energy Tech',
-    'Digital Marketing & UI/UX',
-    'Game Development'
+    'Software based AI'
   ];
 
   const categoryOptions = [
@@ -113,7 +107,7 @@ export function CompetitionFormPage() {
       ...formData,
       team_members: [
         ...formData.team_members,
-        { name: '', email: '', phone: '', track: 'AI & Machine Learning', role: 'Developer' }
+        { name: '', email: '', phone: '', track: 'Applied AI and Data Analytics', role: 'Developer' }
       ]
     });
   };
