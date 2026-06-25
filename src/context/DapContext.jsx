@@ -101,7 +101,7 @@ export function DapProvider({ children }) {
       
       if (res.unverified) {
         setVerificationEmail(email);
-        showToast('Email verification required. Please enter the code sent to your email.', 'warning');
+        showToast('Your email address has not been verified yet. Please verify your email first.', 'warning');
         if (res.otpCode) {
           showToast(`[DEV MODE] OTP Code is: ${res.otpCode}`, 'info');
         }

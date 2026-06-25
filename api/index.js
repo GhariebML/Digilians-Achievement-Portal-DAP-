@@ -237,22 +237,26 @@ const sendMockEmail = async (email, subject, htmlContent) => {
 
 const generateOtpEmailHtml = (fullName, otpCode) => {
   return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; color: #1e293b;">
-      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 30px; border-radius: 6px; text-align: center; color: #ffffff;">
-        <h2 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Digilians Achievement Portal</h2>
-        <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 14px;">Secure Registration Verification</p>
-      </div>
-      <div style="padding: 30px 20px;">
-        <p style="font-size: 16px; margin-top: 0;">Hello <strong>${fullName}</strong>,</p>
-        <p style="font-size: 15px; line-height: 1.6; color: #475569;">Welcome to the Digilians Competition Tracker. To activate your account and verify your identity, please enter the secure 6-digit verification code below on the signup page:</p>
-        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
-          <span style="font-size: 36px; font-weight: 800; letter-spacing: 0.25em; color: #3b82f6; font-family: monospace;">${otpCode}</span>
-          <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">This OTP code is valid for <strong>10 minutes</strong>. Do not share this code.</p>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
+      <div style="background: linear-gradient(135deg, #1e40af 0%, #1e1b4b 100%); padding: 35px 20px; border-radius: 8px 8px 0 0; text-align: center; color: #ffffff; border-bottom: 4px solid #06b6d4;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: #06b6d4; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #ffffff; font-family: monospace;">D</div>
+          <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.03em;">DIGILIANS</span>
         </div>
-        <p style="font-size: 14px; line-height: 1.6; color: #64748b;">If you did not initiate this request, you can safely ignore this email.</p>
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">Account Verification Required</h2>
       </div>
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #94a3b8; font-size: 12px;">
-        &copy; 2026 Digilians Inc. All rights reserved.
+      <div style="padding: 30px 24px; background-color: #ffffff;">
+        <p style="font-size: 16px; margin-top: 0; color: #1e293b;">Welcome to <strong>Digilians Achievement Portal</strong>.</p>
+        <p style="font-size: 15px; line-height: 1.6; color: #475569;">Thank you for registering on our platform. Please use the following 6-digit verification code to activate your account:</p>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 25px; text-align: center; margin: 30px 0;">
+          <div style="font-size: 38px; font-weight: 800; letter-spacing: 0.3em; color: #1e40af; font-family: monospace; margin-left: 0.3em;">${otpCode}</div>
+          <p style="margin: 12px 0 0 0; font-size: 13px; color: #64748b;">This code expires in <strong style="color: #0f172a;">10 minutes</strong>. Do not share this OTP.</p>
+        </div>
+        <p style="font-size: 14px; line-height: 1.6; color: #64748b;">If you did not initiate this registration, you can safely ignore this email.</p>
+      </div>
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #64748b; font-size: 13px;">
+        <p style="margin: 0 0 6px 0;">Need assistance? Contact our support team at <a href="mailto:support@digilians.gov.eg" style="color: #1e40af; text-decoration: none; font-weight: 600;">support@digilians.gov.eg</a></p>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Digilians Achievement Portal. All rights reserved.</p>
       </div>
     </div>
   `;
@@ -260,22 +264,26 @@ const generateOtpEmailHtml = (fullName, otpCode) => {
 
 const generateResetEmailHtml = (fullName, otpCode) => {
   return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; color: #1e293b;">
-      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 30px; border-radius: 6px; text-align: center; color: #ffffff;">
-        <h2 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Digilians Achievement Portal</h2>
-        <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 14px;">Password Recovery Request</p>
-      </div>
-      <div style="padding: 30px 20px;">
-        <p style="font-size: 16px; margin-top: 0;">Hello <strong>${fullName}</strong>,</p>
-        <p style="font-size: 15px; line-height: 1.6; color: #475569;">We received a request to reset your password. Use the following 6-digit verification code to complete the recovery process:</p>
-        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
-          <span style="font-size: 36px; font-weight: 800; letter-spacing: 0.25em; color: #ef4444; font-family: monospace;">${otpCode}</span>
-          <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">This OTP code is valid for <strong>10 minutes</strong>. Do not share this code.</p>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
+      <div style="background: linear-gradient(135deg, #1e40af 0%, #1e1b4b 100%); padding: 35px 20px; border-radius: 8px 8px 0 0; text-align: center; color: #ffffff; border-bottom: 4px solid #06b6d4;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: #06b6d4; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #ffffff; font-family: monospace;">D</div>
+          <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.03em;">DIGILIANS</span>
         </div>
-        <p style="font-size: 14px; line-height: 1.6; color: #64748b;">If you did not request a password reset, please secure your account immediately.</p>
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">Password Recovery Request</h2>
       </div>
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #94a3b8; font-size: 12px;">
-        &copy; 2026 Digilians Inc. All rights reserved.
+      <div style="padding: 30px 24px; background-color: #ffffff;">
+        <p style="font-size: 16px; margin-top: 0; color: #1e293b;">Hello <strong>${fullName}</strong>,</p>
+        <p style="font-size: 15px; line-height: 1.6; color: #475569;">We received a request to recover your password. Please use the following 6-digit verification code to complete the recovery process:</p>
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 25px; text-align: center; margin: 30px 0;">
+          <div style="font-size: 38px; font-weight: 800; letter-spacing: 0.3em; color: #1e40af; font-family: monospace; margin-left: 0.3em;">${otpCode}</div>
+          <p style="margin: 12px 0 0 0; font-size: 13px; color: #64748b;">This code expires in <strong style="color: #0f172a;">10 minutes</strong>. Do not share this OTP.</p>
+        </div>
+        <p style="font-size: 14px; line-height: 1.6; color: #64748b;">If you did not request a password reset, please secure your account immediately or notify us.</p>
+      </div>
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #64748b; font-size: 13px;">
+        <p style="margin: 0 0 6px 0;">Need assistance? Contact our support team at <a href="mailto:support@digilians.gov.eg" style="color: #1e40af; text-decoration: none; font-weight: 600;">support@digilians.gov.eg</a></p>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Digilians Achievement Portal. All rights reserved.</p>
       </div>
     </div>
   `;
@@ -720,22 +728,23 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         otp_id: crypto.randomUUID(),
         user_id: user.user_id,
         otp_code: otpCode,
+        otp_type: 'email_verification',
         expires_at: expiresAt,
         attempts: 0,
         created_at: new Date().toISOString()
       };
       if (!config.isFallbackMode) {
-        await supabase.from('otp').delete().eq('user_id', user.user_id);
+        await supabase.from('otp').delete().eq('user_id', user.user_id).eq('otp_type', 'email_verification');
         await supabase.from('otp').insert([newOtp]);
       } else {
-        localDb.otp = localDb.otp.filter(o => o.user_id !== user.user_id);
+        localDb.otp = localDb.otp.filter(o => !(o.user_id === user.user_id && o.otp_type === 'email_verification'));
         localDb.otp.push(newOtp);
         saveLocalDb();
       }
       sendMockEmail(cleanEmail, 'Verify Your Digilians Account', generateOtpEmailHtml(user.full_name, otpCode));
 
       return res.status(401).json({ 
-        error: 'Email verification required. Code sent to email.',
+        error: 'Your email address has not been verified yet. Please verify your email first.',
         unverified: true,
         email: cleanEmail,
         otpCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined

@@ -38,10 +38,28 @@ export function Login() {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
+  // Cooldown timer state for OTP resend buttons
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Manage timer countdown
+  useEffect(() => {
+    let interval = null;
+    if (resendCooldown > 0) {
+      interval = setInterval(() => {
+        setResendCooldown(prev => prev - 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
   // Auto-focus email field if redirected from verify-otp cancel
   useEffect(() => {
     setError('');
     setInfoMessage('');
+    // Clear cooldown when switching screens/modes
+    setResendCooldown(0);
   }, [authMode, verificationEmail]);
 
   const handleSubmit = async (e) => {
@@ -58,17 +76,20 @@ export function Login() {
         const res = await handleRegister(name, email, password, confirmPassword);
         if (res.success && res.needsVerification) {
           setAuthMode('login'); // OTP screen will trigger automatically via verificationEmail check
+          setResendCooldown(60); // 60s cooldown initially
         }
       } else if (authMode === 'login') {
         const res = await handleLogin(email, password);
         if (res.success && res.needsVerification) {
           // Unverified state, redirect to verification view
+          setResendCooldown(60); // 60s cooldown initially
         }
       } else if (authMode === 'forgot-password') {
         if (forgotStep === 1) {
           const res = await handleForgotPassword(email);
           if (res.success) {
             setForgotStep(2);
+            setResendCooldown(60); // Start 60s cooldown for reset OTP
             setInfoMessage('A 6-digit password recovery code has been sent to your email.');
           }
         } else {
@@ -109,6 +130,7 @@ export function Login() {
   };
 
   const handleResendOtpCode = async () => {
+    if (resendCooldown > 0) return;
     setLoading(true);
     setError('');
     setInfoMessage('');
@@ -117,6 +139,25 @@ export function Login() {
       if (res.success) {
         setInfoMessage('Verification code resent successfully.');
         setOtpAttemptsLeft(3);
+        setResendCooldown(60); // 60s cooldown
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendForgotCode = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setError('');
+    setInfoMessage('');
+    try {
+      const res = await handleForgotPassword(email);
+      if (res.success) {
+        setInfoMessage('A new recovery code has been sent successfully.');
+        setResendCooldown(60); // 60s cooldown
       }
     } catch (err) {
       setError(err.message);
@@ -188,10 +229,20 @@ export function Login() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', fontSize: '0.875rem' }}>
             <button 
               onClick={handleResendOtpCode} 
-              disabled={loading}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              disabled={loading || resendCooldown > 0}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: (loading || resendCooldown > 0) ? 'var(--text-muted)' : 'var(--primary)', 
+                fontWeight: 700, 
+                cursor: (loading || resendCooldown > 0) ? 'not-allowed' : 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.3rem' 
+              }}
             >
-              <RefreshCw size={14} /> Resend OTP Code
+              <RefreshCw size={14} className={resendCooldown > 0 ? 'animate-spin' : ''} /> 
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP Code'}
             </button>
             <button 
               onClick={() => setVerificationEmail('')} 
@@ -304,6 +355,27 @@ export function Login() {
                 <div style={{ position: 'relative' }}>
                   <Key size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input type="text" maxLength="6" value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/\D/g,''))} className="saas-input" style={{ paddingLeft: '2.75rem', letterSpacing: '0.25em', textAlign: 'center', fontWeight: 800 }} placeholder="000000" required />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                  <button 
+                    type="button"
+                    onClick={handleResendForgotCode} 
+                    disabled={loading || resendCooldown > 0}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: (loading || resendCooldown > 0) ? 'var(--text-muted)' : 'var(--primary)', 
+                      fontWeight: 700, 
+                      cursor: (loading || resendCooldown > 0) ? 'not-allowed' : 'pointer', 
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}
+                  >
+                    <RefreshCw size={12} className={resendCooldown > 0 ? 'animate-spin' : ''} /> 
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Recovery Code'}
+                  </button>
                 </div>
               </div>
               <div>
