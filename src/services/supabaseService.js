@@ -1,340 +1,328 @@
-import { createClient } from '@supabase/supabase-js';
-
 export class SupabaseService {
-  static client = null;
-  static isFallbackMode = true;
+  static token = null;
+
+  static setToken(newToken) {
+    this.token = newToken;
+    if (newToken) {
+      localStorage.setItem('dap_access_token', newToken);
+    } else {
+      localStorage.removeItem('dap_access_token');
+    }
+  }
+
+  static getToken() {
+    return this.token || localStorage.getItem('dap_access_token');
+  }
 
   static initialize(url, key) {
-    if (url && key && url.startsWith('http')) {
-      try {
-        this.client = createClient(url, key);
-        this.isFallbackMode = false;
-        console.log("Supabase client initialized successfully.");
-        return true;
-      } catch (err) {
-        console.error("Failed to initialize Supabase client, falling back to secure local cache.", err);
-        this.isFallbackMode = true;
-      }
-    } else {
-      this.isFallbackMode = true;
-    }
-    return false;
+    // Client-side initialization returns true now as connection state is managed securely on backend API
+    console.log("Supabase Service initialized via Backend API Gateway.");
+    return true;
   }
 
   // ==========================================
-  // AUTHENTICATION WRAPPERS
+  // AUTHENTICATION GATEWAY
   // ==========================================
-  static async registerStudent({ name, email, password }) {
-    if (!this.isFallbackMode && this.client) {
-      const { data: authData, error: authError } = await this.client.auth.signUp({
-        email,
-        password,
-        options: { data: { name, role: 'student' } }
-      });
-      if (authError) throw authError;
-
-      const { data: userData, error: userError } = await this.client
-        .from('users')
-        .insert([{ auth_id: authData.user.id, name, email, role: 'student' }])
-        .select()
-        .single();
-      if (userError) throw userError;
-
-      // Log registration
-      await this.logActivity({ userId: userData.id, action: 'User Registration', details: `${name} registered a new student account.` });
-      return { user: userData, session: authData.session };
-    } else {
-      // Local fallback simulation
-      const users = JSON.parse(localStorage.getItem('dap_users') || '[]');
-      if (users.some(u => u.email === email)) {
-        throw new Error('User with this email already exists.');
-      }
-      const newUser = {
-        id: crypto.randomUUID(),
-        auth_id: crypto.randomUUID(),
-        name,
-        email,
-        password, // stored for simulation only
-        role: 'student',
-        created_at: new Date().toISOString()
-      };
-      users.push(newUser);
-      localStorage.setItem('dap_users', JSON.stringify(users));
-
-      // Log registration
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      logs.push({
-        id: crypto.randomUUID(),
-        user_id: newUser.id,
-        action: 'User Registration',
-        details: `${name} registered a new student account.`,
-        created_at: new Date().toISOString()
-      });
-      localStorage.setItem('dap_activity_logs', JSON.stringify(logs));
-
-      return { user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, created_at: newUser.created_at }, session: { access_token: 'mock-jwt-token-student' } };
+  static async registerStudent({ name, email, password, confirmPassword }) {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, confirmPassword: confirmPassword || password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to register student account.');
     }
+    return data;
+  }
+
+  static async verifyOtp({ email, otpCode }) {
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otpCode })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'OTP verification failed.');
+    }
+    // Set token on successful verification
+    if (data.accessToken) {
+      this.setToken(data.accessToken);
+    }
+    return data;
+  }
+
+  static async resendOtp({ email }) {
+    const res = await fetch('/api/auth/resend-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to resend verification code.');
+    }
+    return data;
   }
 
   static async login({ email, password }) {
-    if (!this.isFallbackMode && this.client) {
-      const { data: authData, error: authError } = await this.client.auth.signInWithPassword({ email, password });
-      if (authError) throw authError;
-
-      const { data: userData, error: userError } = await this.client
-        .from('users')
-        .select('*')
-        .eq('auth_id', authData.user.id)
-        .single();
-      if (userError) throw userError;
-
-      await this.logActivity({ userId: userData.id, action: 'User Login', details: `${userData.name} logged in.` });
-      return { user: userData, session: authData.session };
-    } else {
-      // Local fallback simulation
-      // Check if admin login
-      if (email === 'admin@digilians.gov.eg' && password === 'Admin123!') {
-        const adminUser = { id: 'admin-master-id', name: 'Executive Admin', email: 'admin@digilians.gov.eg', role: 'admin', created_at: new Date().toISOString() };
-        // Log admin login
-        const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-        logs.push({
-          id: crypto.randomUUID(),
-          user_id: adminUser.id,
-          action: 'Admin Login',
-          details: `Executive Admin logged into the management dashboard.`,
-          created_at: new Date().toISOString()
-        });
-        localStorage.setItem('dap_activity_logs', JSON.stringify(logs));
-        return { user: adminUser, session: { access_token: 'mock-jwt-token-admin' } };
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.unverified) {
+        // Return structured unverified state so frontend can switch to OTP entry screen
+        return data;
       }
+      throw new Error(data.error || 'Invalid email or password.');
+    }
+    if (data.accessToken) {
+      this.setToken(data.accessToken);
+    }
+    return data;
+  }
 
-      const users = JSON.parse(localStorage.getItem('dap_users') || '[]');
-      const user = users.find(u => u.email === email && u.password === password);
-      if (!user) {
-        throw new Error('Invalid email or password. (For admin access, use admin@digilians.gov.eg / Admin123!)');
-      }
-
-      // Log student login
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      logs.push({
-        id: crypto.randomUUID(),
-        user_id: user.id,
-        action: 'User Login',
-        details: `${user.name} logged in.`,
-        created_at: new Date().toISOString()
+  static async restoreSession() {
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
       });
-      localStorage.setItem('dap_activity_logs', JSON.stringify(logs));
-
-      return { user: { id: user.id, name: user.name, email: user.email, role: user.role, created_at: user.created_at }, session: { access_token: 'mock-jwt-token-student' } };
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.accessToken) {
+        this.setToken(data.accessToken);
+        const meRes = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${data.accessToken}` }
+        });
+        if (meRes.ok) {
+          const profile = await meRes.json();
+          return profile.user;
+        }
+      }
+      return null;
+    } catch (err) {
+      console.warn("Session restoration failed:", err);
+      return null;
     }
   }
 
   static async logout() {
-    if (!this.isFallbackMode && this.client) {
-      await this.client.auth.signOut();
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`
+        }
+      });
+    } catch (err) {
+      console.error("Logout request error:", err);
     }
+    this.setToken(null);
     return true;
   }
 
-  static async getAllStudents() {
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.from('users').select('*').eq('role', 'student');
-      if (error) throw error;
-      return data;
-    } else {
-      const users = JSON.parse(localStorage.getItem('dap_users') || '[]');
-      return users.filter(u => u.role === 'student').map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, created_at: u.created_at }));
+  static async forgotPassword({ email }) {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to submit password recovery request.');
     }
+    return data;
+  }
+
+  static async resetPassword({ email, otpCode, newPassword }) {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otpCode, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to reset password.');
+    }
+    return data;
+  }
+
+  static async getAllStudents() {
+    const res = await fetch('/api/admin/students', {
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to fetch student roster.');
+    }
+    return data;
   }
 
   // ==========================================
   // COMPETITIONS CRUD WRAPPERS
   // ==========================================
   static async getStudentSubmissions(userId) {
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.from('competitions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    } else {
-      const comps = JSON.parse(localStorage.getItem('dap_competitions') || '[]');
-      return comps.filter(c => c.user_id === userId).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const res = await fetch('/api/competitions', {
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to retrieve your submissions.');
     }
+    return data;
   }
 
   static async getAllSubmissions() {
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.from('competitions').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    } else {
-      const comps = JSON.parse(localStorage.getItem('dap_competitions') || '[]');
-      return comps.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const res = await fetch('/api/competitions', {
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to retrieve all submissions.');
     }
+    return data;
   }
 
   static async createSubmission(competitionData, userId, userName) {
-    if (!this.isFallbackMode && this.client) {
-      const record = { ...competitionData, user_id: userId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-      const { data, error } = await this.client.from('competitions').insert([record]).select().single();
-      if (error) throw error;
-      
-      await this.logActivity({ userId, action: 'New Submission', details: `${userName} submitted a new competition: ${competitionData.competition_name}` });
-      return data;
-    } else {
-      const comps = JSON.parse(localStorage.getItem('dap_competitions') || '[]');
-      const newRecord = {
-        id: crypto.randomUUID(),
-        user_id: userId,
-        ...competitionData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      comps.push(newRecord);
-      localStorage.setItem('dap_competitions', JSON.stringify(comps));
-
-      // Log creation
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      logs.push({
-        id: crypto.randomUUID(),
-        user_id: userId,
-        action: 'New Submission',
-        details: `${userName} submitted a new competition: ${competitionData.competition_name}`,
-        created_at: new Date().toISOString()
-      });
-      localStorage.setItem('dap_activity_logs', JSON.stringify(logs));
-
-      return newRecord;
+    const res = await fetch('/api/competitions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
+      },
+      body: JSON.stringify(competitionData)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to create competition submission.');
     }
+    return data;
   }
 
   static async updateSubmission(competitionId, updateData, userId, userName) {
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.from('competitions')
-        .update({ ...updateData, updated_at: new Date().toISOString() })
-        .eq('id', competitionId)
-        .select()
-        .single();
-      if (error) throw error;
-
-      await this.logActivity({ userId, action: 'Submission Update', details: `${userName} updated ${data.competition_name} status to ${updateData.status}` });
-      return data;
-    } else {
-      const comps = JSON.parse(localStorage.getItem('dap_competitions') || '[]');
-      const index = comps.findIndex(c => c.id === competitionId);
-      if (index === -1) throw new Error('Competition record not found.');
-      
-      const compName = comps[index].competition_name;
-      comps[index] = { ...comps[index], ...updateData, updated_at: new Date().toISOString() };
-      localStorage.setItem('dap_competitions', JSON.stringify(comps));
-
-      // Log update
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      logs.push({
-        id: crypto.randomUUID(),
-        user_id: userId,
-        action: 'Submission Update',
-        details: `${userName} updated ${compName} status to ${updateData.status}`,
-        created_at: new Date().toISOString()
-      });
-      localStorage.setItem('dap_activity_logs', JSON.stringify(logs));
-
-      return comps[index];
+    const res = await fetch(`/api/competitions/${competitionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
+      },
+      body: JSON.stringify(updateData)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to update competition submission.');
     }
+    return data;
   }
 
   static async deleteSubmission(competitionId, userId, userName) {
-    if (!this.isFallbackMode && this.client) {
-      const { data: comp, error: fetchErr } = await this.client.from('competitions').select('competition_name').eq('id', competitionId).single();
-      const { error } = await this.client.from('competitions').delete().eq('id', competitionId);
-      if (error) throw error;
-
-      await this.logActivity({ userId, action: 'Submission Delete', details: `${userName} deleted competition: ${comp?.competition_name || competitionId}` });
-      return true;
-    } else {
-      let comps = JSON.parse(localStorage.getItem('dap_competitions') || '[]');
-      const target = comps.find(c => c.id === competitionId);
-      if (!target) throw new Error('Competition not found.');
-
-      comps = comps.filter(c => c.id !== competitionId);
-      localStorage.setItem('dap_competitions', JSON.stringify(comps));
-
-      // Log delete
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      logs.push({
-        id: crypto.randomUUID(),
-        user_id: userId,
-        action: 'Submission Delete',
-        details: `${userName} deleted competition: ${target.competition_name}`,
-        created_at: new Date().toISOString()
-      });
-      localStorage.setItem('dap_activity_logs', JSON.stringify(logs));
-
-      return true;
+    const res = await fetch(`/api/competitions/${competitionId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to delete competition submission.');
     }
+    return true;
   }
 
   // ==========================================
-  // ACTIVITY LOGS WRAPPERS
+  // ACTIVITY LOGS & AUDIT WRAPPERS
   // ==========================================
   static async logActivity({ userId, action, details }) {
-    if (!this.isFallbackMode && this.client) {
-      const { error } = await this.client.from('activity_logs').insert([{ user_id: userId, action, details }]);
-      if (error) console.error("Error logging activity to Supabase:", error);
-    }
+    // Handled automatically server-side on CRUD endpoints. Stub left for backwards compatibility.
+    return true;
   }
 
   static async getStudentLogs(userId) {
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.from('activity_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    } else {
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      return logs.filter(l => l.user_id === userId).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const res = await fetch('/api/logs', {
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to retrieve activity logs.');
     }
+    return data;
   }
 
   static async getAllLogs() {
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.from('activity_logs').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    } else {
-      const logs = JSON.parse(localStorage.getItem('dap_activity_logs') || '[]');
-      return logs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const res = await fetch('/api/admin/logs', {
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to retrieve system activity logs.');
     }
+    return data;
+  }
+
+  static async getAdminStats() {
+    const res = await fetch('/api/admin/stats', {
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to fetch administrative console statistics.');
+    }
+    return data;
+  }
+
+  static async forceReSyncAll() {
+    const res = await fetch('/api/admin/sync-all', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.getToken()}` }
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to execute re-sync operation.');
+    }
+    return data;
   }
 
   // ==========================================
-  // STORAGE BUCKET WRAPPERS (competition-proofs)
+  // FILE UPLOAD AND BLOB WRAPPERS
   // ==========================================
   static async uploadCompetitionProof(file, userId) {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
-
-    if (!this.isFallbackMode && this.client) {
-      const { data, error } = await this.client.storage
-        .from('competition-proofs')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false });
-      if (error) throw error;
-      return data.path;
-    } else {
-      // Local fallback simulation
-      console.log("Simulating file upload to competition-proofs bucket in local cache:", fileName);
-      return `mock-proofs/${fileName}`;
-    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result.split(',')[1];
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.getToken()}`
+            },
+            body: JSON.stringify({ filename: file.name, fileData: base64Data })
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'File upload failed');
+          }
+          const data = await res.json();
+          resolve(data.path);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
   }
 
   static getCompetitionProofUrl(path) {
     if (!path) return null;
-    if (!this.isFallbackMode && this.client) {
-      const { data } = this.client.storage
-        .from('competition-proofs')
-        .getPublicUrl(path);
-      return data.publicUrl;
-    } else {
-      return `https://simulation-storage.digilians.gov.eg/competition-proofs/${path}`;
-    }
+    return `https://pmqqtxekwniywihzkkio.supabase.co/storage/v1/object/public/competition-proofs/${path}`;
   }
 }
-

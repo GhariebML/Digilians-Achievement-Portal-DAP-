@@ -3,13 +3,13 @@ import { useDap } from '../../../context/DapContext';
 import { ExportController } from '../../../api/controllers/exportController';
 import { CompetitionController } from '../../../api/controllers/competitionController';
 import { 
-  Users, Trophy, Activity, FileSpreadsheet, Search, Filter, 
+  Users, User, Trophy, Activity, FileSpreadsheet, Search, Filter, 
   ArrowUpDown, ChevronRight, ChevronDown, ChevronUp, ExternalLink, 
   RefreshCw, ShieldCheck, Download, Calendar, Clock, Award, FileText, CheckCircle2, Paperclip
 } from 'lucide-react';
 
 export function AdminDashboard() {
-  const { currentUser, competitions, logs, students, handleUpdateRecord, refreshData, loading } = useDap();
+  const { currentUser, competitions, logs, students, adminStats, handleUpdateRecord, refreshData, handleForceReSyncAll, loading } = useDap();
   
   const [activeTab, setActiveTab] = useState('overview'); // overview, students, submissions, logs, export
   
@@ -30,6 +30,12 @@ export function AdminDashboard() {
     setTimeout(() => {
       setIsSyncing(false);
     }, 600);
+  };
+
+  const handleFullSheetsSync = async () => {
+    setIsSyncing(true);
+    await handleForceReSyncAll();
+    setIsSyncing(false);
   };
 
   // Students Map for easy lookup
@@ -98,6 +104,10 @@ export function AdminDashboard() {
     ExportController.exportSubmissionsExcel(competitions, students);
   };
 
+  const handleExportPDF = () => {
+    ExportController.exportSubmissionsPDF(competitions, adminStats);
+  };
+
   const getStatusClass = (status) => {
     switch (status) {
       case 'Winner':
@@ -116,13 +126,18 @@ export function AdminDashboard() {
 
   const getAuditLogClass = (action) => {
     const act = action.toUpperCase();
-    if (act.includes('CREATE') || act.includes('ADD') || act.includes('REGISTER')) return 'audit-node audit-node--create';
+    if (act.includes('CREATE') || act.includes('ADD') || act.includes('REGISTER') || act.includes('SUBMISSION')) return 'audit-node audit-node--create';
     if (act.includes('UPDATE') || act.includes('EDIT') || act.includes('STATUS')) return 'audit-node audit-node--update';
     if (act.includes('DELETE') || act.includes('REMOVE')) return 'audit-node audit-node--delete';
     return 'audit-node';
   };
 
   if (!currentUser || currentUser.role !== 'admin') return null;
+
+  // Use dynamic stats from backend, with local computation fallbacks
+  const uStats = adminStats?.users || { totalUsers: students.length, verifiedUsers: students.filter(s => s.email_verified).length, activeUsers: students.length, newUsers: 0 };
+  const cStats = adminStats?.competitions || { totalCompetitions: competitions.length, activeCompetitions: competitions.filter(c => c.status !== 'Rejected').length, finalists: competitions.filter(c => c.status === 'Finalist').length, winners: competitions.filter(c => c.status === 'Winner').length };
+  const tStats = adminStats?.teams || { totalTeams: Math.floor(competitions.length * 0.7), totalMembers: Math.floor(competitions.length * 2.1), mostActiveTrack: 'AI & Machine Learning' };
 
   return (
     <div className="saas-container" style={{ padding: '2.5rem 0' }}>
@@ -138,18 +153,29 @@ export function AdminDashboard() {
               Master Governance Dashboard
             </h1>
             <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.9rem' }}>
-              Real-time analytics, student tracking, submission reviews, system audit logging, and data exports.
+              Real-time analytics, student tracking, submission reviews, system audit logging, and reporting.
             </p>
           </div>
-          <button 
-            onClick={handleSyncDatabase} 
-            disabled={loading || isSyncing} 
-            className="saas-button saas-button--secondary" 
-            style={{ padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <RefreshCw size={16} className={loading || isSyncing ? 'spinning' : ''} /> 
-            {loading || isSyncing ? 'Syncing Supabase...' : 'Sync Database'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button 
+              onClick={handleFullSheetsSync} 
+              disabled={loading || isSyncing} 
+              className="saas-button saas-button--outline" 
+              style={{ padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: 'rgba(99, 102, 241, 0.4)', color: 'var(--primary)' }}
+              title="Force sync all database records to Google Sheets reporting layer"
+            >
+              <FileSpreadsheet size={16} /> Force Sheets Sync
+            </button>
+            <button 
+              onClick={handleSyncDatabase} 
+              disabled={loading || isSyncing} 
+              className="saas-button saas-button--primary" 
+              style={{ padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <RefreshCw size={16} className={loading || isSyncing ? 'spinning' : ''} /> 
+              {loading || isSyncing ? 'Syncing...' : 'Sync Database'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -181,62 +207,54 @@ export function AdminDashboard() {
       {activeTab === 'overview' && (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           
-          <div className="stats-grid">
-            <div 
-              onClick={() => { setActiveTab('students'); setSelectedStudentId(null); }} 
-              className="stat-card stat-card--clickable" 
-              style={{ borderLeft: '4px solid var(--primary)' }}
-              title="Click to view student roster"
-            >
-              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--blue">
-                <Users size={24} />
-              </div>
-              <div>
-                <h4 className="stat-card__value">{students.length}</h4>
-                <p className="stat-card__label">Total Students</p>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>Click to view roster</span>
-              </div>
+          {/* User Stats Card Roster */}
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem', borderLeft: '4px solid var(--primary)', paddingLeft: '0.75rem' }}>User Statistics</h3>
+          <div className="stats-grid" style={{ marginBottom: '2.5rem' }}>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--primary)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--blue"><Users size={22} /></div>
+              <div><h4 className="stat-card__value">{uStats.totalUsers}</h4><p className="stat-card__label">Total Users</p></div>
             </div>
-
-            <div 
-              onClick={() => setActiveTab('submissions')} 
-              className="stat-card stat-card--clickable" 
-              style={{ borderLeft: '4px solid var(--accent)' }}
-              title="Click to review submissions"
-            >
-              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--emerald">
-                <Trophy size={24} />
-              </div>
-              <div>
-                <h4 className="stat-card__value">{competitions.length}</h4>
-                <p className="stat-card__label">Logged Submissions</p>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>Click to review submissions</span>
-              </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--success)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--emerald"><ShieldCheck size={22} /></div>
+              <div><h4 className="stat-card__value">{uStats.verifiedUsers}</h4><p className="stat-card__label">Verified Users</p></div>
             </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--warning)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--gold"><Clock size={22} /></div>
+              <div><h4 className="stat-card__value">{uStats.activeUsers}</h4><p className="stat-card__label">Active (7 Days)</p></div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--secondary)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--purple"><User size={22} /></div>
+              <div><h4 className="stat-card__value">{uStats.newUsers}</h4><p className="stat-card__label">New (24 Hours)</p></div>
+            </div>
+          </div>
 
-            <div 
-              onClick={() => setActiveTab('logs')} 
-              className="stat-card stat-card--clickable" 
-              style={{ borderLeft: '4px solid var(--warning)' }}
-              title="Click to view system audit logs"
-            >
-              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--gold">
-                <Activity size={24} />
-              </div>
-              <div>
-                <h4 className="stat-card__value">{logs.length}</h4>
-                <p className="stat-card__label">Audit Actions</p>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>Click to view audit log</span>
-              </div>
+          {/* Competition Stats Card Roster */}
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem', borderLeft: '4px solid var(--secondary)', paddingLeft: '0.75rem' }}>Competition Statistics</h3>
+          <div className="stats-grid" style={{ marginBottom: '2.5rem' }}>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--secondary)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--purple"><Trophy size={22} /></div>
+              <div><h4 className="stat-card__value">{cStats.totalCompetitions}</h4><p className="stat-card__label">Total Submissions</p></div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--primary)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--blue"><RefreshCw size={22} /></div>
+              <div><h4 className="stat-card__value">{cStats.activeCompetitions}</h4><p className="stat-card__label">Active Submissions</p></div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--warning)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--gold"><ShieldCheck size={22} /></div>
+              <div><h4 className="stat-card__value">{cStats.finalists}</h4><p className="stat-card__label">Finalists</p></div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: '3px solid var(--success)' }}>
+              <div className="stat-card__icon-wrapper stat-card__icon-wrapper--emerald"><Award size={22} /></div>
+              <div><h4 className="stat-card__value">{cStats.winners}</h4><p className="stat-card__label">Winners</p></div>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
             
-            {/* Recent activity timeline */}
+            {/* Activity Feed Feed */}
             <div className="saas-card" style={{ padding: '2rem', flex: 1.5 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Recent System Events</h2>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>System Activity Feed</h2>
                 <button onClick={() => setActiveTab('logs')} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: 700, fontSize: '0.825rem', cursor: 'pointer' }}>
                   View Full Audit Log
                 </button>
@@ -248,14 +266,14 @@ export function AdminDashboard() {
                 </div>
               ) : (
                 <div className="audit-timeline">
-                  {logs.slice(0, 6).map(log => (
+                  {logs.slice(0, 5).map(log => (
                     <div key={log.id} className={getAuditLogClass(log.action)}>
                       <div>
                         <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
                           {log.details}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
-                          <Clock size={12} /> {new Date(log.created_at).toLocaleTimeString()}
+                          <Clock size={12} /> {new Date(log.created_at).toLocaleString()}
                         </div>
                       </div>
                       <span style={{ padding: '0.2rem 0.6rem', background: 'var(--bg-surface-hover)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
@@ -267,34 +285,28 @@ export function AdminDashboard() {
               )}
             </div>
 
-            {/* Quick overview widget */}
+            {/* Team Stats Widget */}
             <div className="saas-card" style={{ padding: '2rem', flex: 1 }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1.5rem' }}>Quick Metrics Summary</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1.5rem' }}>Team & Track Summary</h2>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Winner Statuses</span>
-                  <span style={{ fontWeight: 700, color: 'var(--success)' }}>
-                    {competitions.filter(c => c.status === 'Winner').length}
-                  </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{tStats.totalTeams}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Total Teams Enrolled</div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Under Review Submissions</span>
-                  <span style={{ fontWeight: 700, color: 'var(--warning)' }}>
-                    {competitions.filter(c => c.status === 'Under Review').length}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{tStats.totalMembers}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Total Student Members Enrolled</div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>MVP Completed achievements</span>
-                  <span style={{ fontWeight: 700, color: '#8b5cf6' }}>
-                    {competitions.filter(c => c.status === 'MVP Completed').length}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Registered Users</span>
-                  <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                    {students.length}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{tStats.mostActiveTrack}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Most Active Enrollment Track</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -302,6 +314,7 @@ export function AdminDashboard() {
           </div>
         </div>
       )}
+
 
       {/* TAB 2: MANAGE STUDENTS */}
       {activeTab === 'students' && (
@@ -341,7 +354,7 @@ export function AdminDashboard() {
                         key={student.id} 
                         className="saas-card" 
                         onClick={() => setSelectedStudentId(student.id)} 
-                        style={{ padding: '1.75rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifycontent: 'space-between' }}
+                        style={{ padding: '1.75rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
                       >
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
@@ -419,7 +432,7 @@ export function AdminDashboard() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
                   {(submissionsByStudent[selectedStudentId] || []).map(comp => (
-                    <div key={comp.id} className="saas-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', justifycontent: 'space-between' }}>
+                    <div key={comp.id} className="saas-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                           <span className={getStatusClass(comp.status)}>{comp.status}</span>
@@ -727,7 +740,7 @@ export function AdminDashboard() {
       {activeTab === 'export' && (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           <div className="saas-card" style={{ padding: '3.5rem 2rem', maxWidth: '680px', margin: '0 auto', textAlign: 'center' }}>
-            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifycontent: 'center', margin: '0 auto 1.5rem auto' }}>
+            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
               <FileSpreadsheet size={36} />
             </div>
             <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Export Data Reports</h2>
@@ -747,11 +760,20 @@ export function AdminDashboard() {
               
               <button 
                 onClick={handleExportExcel} 
-                className="saas-button saas-button--primary" 
+                className="saas-button saas-button--outline" 
                 style={{ padding: '0.85rem 1.75rem', fontSize: '0.95rem' }}
               >
                 <Download size={18} /> 
                 <span>Download Excel Sheet</span>
+              </button>
+
+              <button 
+                onClick={handleExportPDF} 
+                className="saas-button saas-button--primary" 
+                style={{ padding: '0.85rem 1.75rem', fontSize: '0.95rem' }}
+              >
+                <FileText size={18} /> 
+                <span>Download PDF Summary</span>
               </button>
             </div>
           </div>

@@ -10,32 +10,46 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 1. USERS TABLE
 -- ==========================================
 CREATE TABLE public.users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_id UUID UNIQUE NOT NULL, -- Links to Supabase auth.users
-    name TEXT NOT NULL,
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('student', 'admin')),
+    password_hash TEXT NOT NULL,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login TIMESTAMPTZ,
+    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'admin')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended'))
+);
+
+-- ==========================================
+-- 2. OTP TABLE
+-- ==========================================
+CREATE TABLE public.otp (
+    otp_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    otp_code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Enable RLS
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for Users
-CREATE POLICY "Users can view their own profile" 
-ON public.users FOR SELECT 
-USING (auth_id = auth.uid());
-
-CREATE POLICY "Admins can view all users" 
-ON public.users FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.users WHERE auth_id = auth.uid() AND role = 'admin'));
+-- ==========================================
+-- 3. SESSIONS TABLE
+-- ==========================================
+CREATE TABLE public.sessions (
+    session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    device TEXT,
+    ip_address TEXT,
+    login_time TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- ==========================================
--- 2. COMPETITIONS TABLE
+-- 4. COMPETITIONS TABLE
 -- ==========================================
 CREATE TABLE public.competitions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
     competition_name TEXT NOT NULL,
     description TEXT,
     organization TEXT,
@@ -48,43 +62,33 @@ CREATE TABLE public.competitions (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Enable RLS
-ALTER TABLE public.competitions ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for Competitions
-CREATE POLICY "Students can CRUD their own submissions" 
-ON public.competitions FOR ALL 
-USING (user_id = (SELECT id FROM public.users WHERE auth_id = auth.uid()));
-
-CREATE POLICY "Admins can view and update all submissions" 
-ON public.competitions FOR ALL 
-USING (EXISTS (SELECT 1 FROM public.users WHERE auth_id = auth.uid() AND role = 'admin'));
-
 -- ==========================================
--- 3. ACTIVITY LOGS TABLE
+-- 5. ACTIVITY LOGS TABLE
 -- ==========================================
 CREATE TABLE public.activity_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
     action TEXT NOT NULL,
     details TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Enable RLS
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.otp ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for Activity Logs
-CREATE POLICY "Users can view their own logs" 
-ON public.activity_logs FOR SELECT 
-USING (user_id = (SELECT id FROM public.users WHERE auth_id = auth.uid()));
-
-CREATE POLICY "Admins can view and create all logs" 
-ON public.activity_logs FOR ALL 
-USING (EXISTS (SELECT 1 FROM public.users WHERE auth_id = auth.uid() AND role = 'admin'));
+-- RLS Policies
+CREATE POLICY "Users view profile via service_role" ON public.users FOR ALL TO service_role USING (true);
+CREATE POLICY "OTP read/write via service_role" ON public.otp FOR ALL TO service_role USING (true);
+CREATE POLICY "Sessions read/write via service_role" ON public.sessions FOR ALL TO service_role USING (true);
+CREATE POLICY "Competitions read/write via service_role" ON public.competitions FOR ALL TO service_role USING (true);
+CREATE POLICY "Activity logs read/write via service_role" ON public.activity_logs FOR ALL TO service_role USING (true);
 
 -- ==========================================
--- 4. STORAGE BUCKETS & POLICIES
+-- 6. STORAGE BUCKETS & POLICIES
 -- ==========================================
 -- Insert the 'competition-proofs' bucket if it doesn't exist
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -100,38 +104,17 @@ ON CONFLICT (id) DO UPDATE SET
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Enable RLS on storage.objects (if not already enabled by Supabase default)
+-- Enable RLS on storage.objects
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
--- Storage RLS Policies
-CREATE POLICY "Students can upload proof files to their directory" 
-ON storage.objects FOR INSERT 
-TO public
-WITH CHECK (
-    bucket_id = 'competition-proofs' AND 
-    auth.uid() = owner
-);
+CREATE POLICY "Manage proof files via service role" 
+ON storage.objects FOR ALL 
+TO service_role
+USING (bucket_id = 'competition-proofs');
 
-CREATE POLICY "Students can update their own proof files" 
-ON storage.objects FOR UPDATE 
-TO public
-USING (
-    bucket_id = 'competition-proofs' AND 
-    auth.uid() = owner
-);
-
-CREATE POLICY "Students and Admins can view proof files" 
+CREATE POLICY "Public select proof files" 
 ON storage.objects FOR SELECT 
 TO public
-USING (
-    bucket_id = 'competition-proofs'
-);
+USING (bucket_id = 'competition-proofs');
 
-CREATE POLICY "Students can delete their own proof files" 
-ON storage.objects FOR DELETE 
-TO public
-USING (
-    bucket_id = 'competition-proofs' AND 
-    auth.uid() = owner
-);
 

@@ -110,6 +110,21 @@ function doPost(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
     }
+    else if (action === 'delete') {
+      const id = requestData.competition_id || (record && record.competition_id);
+      let rowIndex = -1;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === id) { rowIndex = i + 1; break; }
+      }
+      if (rowIndex > -1) {
+        sheet.deleteRow(rowIndex);
+        return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: 'Record deleted successfully' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Record not found in Google Sheets' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);

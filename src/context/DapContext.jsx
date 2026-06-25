@@ -1,7 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AuthController } from '../api/controllers/authController';
-import { CompetitionController } from '../api/controllers/competitionController';
-import { ActivityLogController } from '../api/controllers/activityLogController';
 import { SupabaseService } from '../services/supabaseService';
 
 const DapContext = createContext();
@@ -18,50 +15,45 @@ export function DapProvider({ children }) {
       const u = JSON.parse(saved);
       return u.role === 'admin' ? 'admin-dashboard' : 'student-dashboard';
     }
-    return 'home'; // landing page / login
+    return 'home';
   });
 
   const [theme, setTheme] = useState('light');
   const [toast, setToast] = useState(null);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
-
-  // Storage configuration state
-  const [credentials, setCredentials] = useState(() => {
-    const saved = localStorage.getItem('dap_cloud_credentials');
-    return saved ? JSON.parse(saved) : {
-      mode: 'local',
-      googleSheetsUrl: '',
-      supabaseUrl: '',
-      supabaseKey: '',
-      isFallbackMode: true
-    };
-  });
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   // Active data state based on user role
   const [competitions, setCompetitions] = useState([]);
   const [logs, setLogs] = useState([]);
   const [students, setStudents] = useState([]);
+  const [adminStats, setAdminStats] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    // Keep it displayed long enough for reading OTP codes in dev mode
+    setTimeout(() => setToast(null), 6000);
   }, []);
-
-  // Initialize Supabase if credentials exist
-  useEffect(() => {
-    if (credentials.mode === 'supabase' && credentials.supabaseUrl && credentials.supabaseKey) {
-      const success = SupabaseService.initialize(credentials.supabaseUrl, credentials.supabaseKey);
-      setCredentials(prev => ({ ...prev, isFallbackMode: !success }));
-    } else {
-      setCredentials(prev => ({ ...prev, isFallbackMode: true }));
-    }
-  }, [credentials.mode, credentials.supabaseUrl, credentials.supabaseKey]);
 
   // Sync theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Attempt session restoration on startup
+  useEffect(() => {
+    const restore = async () => {
+      const user = await SupabaseService.restoreSession();
+      if (user) {
+        setCurrentUser(user);
+        localStorage.setItem('dap_current_user', JSON.stringify(user));
+        setActiveView(user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard');
+        showToast(`Logged in automatically. Welcome back!`, 'success');
+      }
+    };
+    restore();
+  }, [showToast]);
 
   // Fetch active tenant data based on currentUser
   const refreshData = useCallback(async () => {
@@ -69,21 +61,24 @@ export function DapProvider({ children }) {
       setCompetitions([]);
       setLogs([]);
       setStudents([]);
+      setAdminStats(null);
       return;
     }
 
     setLoading(true);
     try {
       if (currentUser.role === 'admin') {
-        const allComps = await CompetitionController.getAllSubmissions();
-        const allLogs = await ActivityLogController.getAllLogs();
-        const allStds = await AuthController.getAllStudents();
+        const allComps = await SupabaseService.getAllSubmissions();
+        const allLogs = await SupabaseService.getAllLogs();
+        const allStds = await SupabaseService.getAllStudents();
+        const stats = await SupabaseService.getAdminStats();
         setCompetitions(allComps);
         setLogs(allLogs);
         setStudents(allStds);
+        setAdminStats(stats);
       } else {
-        const studentComps = await CompetitionController.getStudentSubmissions(currentUser.id);
-        const studentLogs = await ActivityLogController.getStudentLogs(currentUser.id);
+        const studentComps = await SupabaseService.getStudentSubmissions(currentUser.id);
+        const studentLogs = await SupabaseService.getStudentLogs(currentUser.id);
         setCompetitions(studentComps);
         setLogs(studentLogs);
       }
@@ -102,7 +97,17 @@ export function DapProvider({ children }) {
   // Authentication Handlers
   const handleLogin = useCallback(async (email, password) => {
     try {
-      const res = await AuthController.login({ email, password });
+      const res = await SupabaseService.login({ email, password });
+      
+      if (res.unverified) {
+        setVerificationEmail(email);
+        showToast('Email verification required. Please enter the code sent to your email.', 'warning');
+        if (res.otpCode) {
+          showToast(`[DEV MODE] OTP Code is: ${res.otpCode}`, 'info');
+        }
+        return { success: true, needsVerification: true };
+      }
+
       setCurrentUser(res.user);
       localStorage.setItem('dap_current_user', JSON.stringify(res.user));
       showToast(`Welcome back, ${res.user.name}!`, 'success');
@@ -114,12 +119,28 @@ export function DapProvider({ children }) {
     }
   }, [showToast]);
 
-  const handleRegister = useCallback(async (name, email, password) => {
+  const handleRegister = useCallback(async (name, email, password, confirmPassword) => {
     try {
-      const res = await AuthController.registerStudent({ name, email, password });
+      const res = await SupabaseService.registerStudent({ name, email, password, confirmPassword });
+      setVerificationEmail(email);
+      showToast('Registration successful! OTP verification code sent.', 'success');
+      if (res.otpCode) {
+        showToast(`[DEV MODE] OTP Code is: ${res.otpCode}`, 'info');
+      }
+      return { success: true, needsVerification: true };
+    } catch (err) {
+      showToast(err.message, 'error');
+      return { success: false, error: err.message };
+    }
+  }, [showToast]);
+
+  const handleVerifyOtp = useCallback(async (email, otpCode) => {
+    try {
+      const res = await SupabaseService.verifyOtp({ email, otpCode });
       setCurrentUser(res.user);
       localStorage.setItem('dap_current_user', JSON.stringify(res.user));
-      showToast(`Account created successfully! Welcome, ${res.user.name}`, 'success');
+      setVerificationEmail('');
+      showToast(`Email verified successfully! Welcome, ${res.user.name}`, 'success');
       setActiveView('student-dashboard');
       return { success: true };
     } catch (err) {
@@ -128,20 +149,59 @@ export function DapProvider({ children }) {
     }
   }, [showToast]);
 
+  const handleResendOtp = useCallback(async (email) => {
+    try {
+      const res = await SupabaseService.resendOtp({ email });
+      showToast('Verification code resent successfully.', 'success');
+      if (res.otpCode) {
+        showToast(`[DEV MODE] OTP Code is: ${res.otpCode}`, 'info');
+      }
+      return { success: true };
+    } catch (err) {
+      showToast(err.message, 'error');
+      return { success: false, error: err.message };
+    }
+  }, [showToast]);
+
   const handleLogout = useCallback(async () => {
-    await AuthController.logout();
+    await SupabaseService.logout();
     setCurrentUser(null);
     localStorage.removeItem('dap_current_user');
     showToast('You have been securely logged out.', 'info');
     setActiveView('home');
   }, [showToast]);
 
+  const handleForgotPassword = useCallback(async (email) => {
+    try {
+      const res = await SupabaseService.forgotPassword({ email });
+      showToast('Password recovery code sent to your email.', 'success');
+      if (res.otpCode) {
+        showToast(`[DEV MODE] Recovery OTP is: ${res.otpCode}`, 'info');
+      }
+      return { success: true };
+    } catch (err) {
+      showToast(err.message, 'error');
+      return { success: false, error: err.message };
+    }
+  }, [showToast]);
+
+  const handleResetPassword = useCallback(async (email, otpCode, newPassword) => {
+    try {
+      await SupabaseService.resetPassword({ email, otpCode, newPassword });
+      showToast('Password reset successfully. You can now log in.', 'success');
+      return { success: true };
+    } catch (err) {
+      showToast(err.message, 'error');
+      return { success: false, error: err.message };
+    }
+  }, [showToast]);
+
   // Competition CRUD Handlers
   const handleCreateRecord = useCallback(async (formData) => {
     if (!currentUser) throw new Error("Must be logged in to create a submission.");
     try {
-      const saved = await CompetitionController.createSubmission(formData, currentUser.id, currentUser.name);
-      showToast('Competition record successfully submitted!', 'success');
+      const saved = await SupabaseService.createSubmission(formData, currentUser.id, currentUser.name);
+      showToast('Competition record successfully submitted and synced!', 'success');
       await refreshData();
       return saved;
     } catch (err) {
@@ -153,8 +213,8 @@ export function DapProvider({ children }) {
   const handleUpdateRecord = useCallback(async (competitionId, updateData) => {
     if (!currentUser) throw new Error("Must be logged in to update a submission.");
     try {
-      const updated = await CompetitionController.updateSubmission(competitionId, updateData, currentUser.id, currentUser.name);
-      showToast('Submission updated successfully!', 'success');
+      const updated = await SupabaseService.updateSubmission(competitionId, updateData, currentUser.id, currentUser.name);
+      showToast('Submission updated successfully and synced!', 'success');
       await refreshData();
       return updated;
     } catch (err) {
@@ -166,8 +226,8 @@ export function DapProvider({ children }) {
   const handleDeleteRecord = useCallback(async (competitionId) => {
     if (!currentUser) throw new Error("Must be logged in to delete a submission.");
     try {
-      await CompetitionController.deleteSubmission(competitionId, currentUser.id, currentUser.name);
-      showToast('Submission deleted permanently.', 'success');
+      await SupabaseService.deleteSubmission(competitionId, currentUser.id, currentUser.name);
+      showToast('Submission deleted permanently and sync updated.', 'success');
       await refreshData();
       return true;
     } catch (err) {
@@ -176,15 +236,19 @@ export function DapProvider({ children }) {
     }
   }, [currentUser, refreshData, showToast]);
 
-  const handleUpdateCredentials = useCallback((mode, sheetsUrl, supabaseUrl, supabaseKey) => {
-    const updated = { mode, googleSheetsUrl: sheetsUrl, supabaseUrl, supabaseKey, isFallbackMode: true };
-    localStorage.setItem('dap_cloud_credentials', JSON.stringify(updated));
-    setCredentials(updated);
-    showToast(`Master storage backend switched to ${mode.toUpperCase()}`, 'success');
-  }, [showToast]);
+  const handleForceReSyncAll = useCallback(async () => {
+    try {
+      await SupabaseService.forceReSyncAll();
+      showToast('Master synchronization with Google Sheets complete.', 'success');
+      await refreshData();
+    } catch (err) {
+      showToast('Sync error: ' + err.message, 'error');
+    }
+  }, [refreshData, showToast]);
 
   const value = {
     currentUser,
+    setCurrentUser,
     activeView,
     setActiveView,
     selectedSubmission,
@@ -193,18 +257,24 @@ export function DapProvider({ children }) {
     setTheme,
     toast,
     showToast,
-    credentials,
     competitions,
     logs,
     students,
+    adminStats,
     loading,
+    verificationEmail,
+    setVerificationEmail,
     handleLogin,
     handleRegister,
+    handleVerifyOtp,
+    handleResendOtp,
+    handleForgotPassword,
+    handleResetPassword,
     handleLogout,
     handleCreateRecord,
     handleUpdateRecord,
     handleDeleteRecord,
-    handleUpdateCredentials,
+    handleForceReSyncAll,
     refreshData
   };
 
@@ -216,3 +286,4 @@ export function useDap() {
   if (!context) throw new Error('useDap must be used within a DapProvider');
   return context;
 }
+

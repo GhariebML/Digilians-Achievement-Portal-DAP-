@@ -321,7 +321,7 @@ export function StudentDashboard() {
         
         /* Elegant Empty State */
         <div className="saas-card" style={{ padding: '5.5rem 2rem', textAlign: 'center', background: 'var(--bg-surface)' }}>
-          <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifycontent: 'center', margin: '0 auto 1.5rem auto' }}>
+          <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
             <Award size={36} />
           </div>
           <h3 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>

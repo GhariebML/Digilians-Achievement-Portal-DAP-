@@ -59,4 +59,26 @@ export class ExportController {
       return { success: false, error: err.message };
     }
   }
+
+  static exportSubmissionsPDF(submissions, stats) {
+    try {
+      // Map properties for PDF stats structure
+      const formattedStats = {
+        totalStudents: stats?.users?.totalUsers || 0,
+        totalCompetitions: stats?.competitions?.totalCompetitions || 0,
+        activeTeams: stats?.teams?.totalTeams || 0,
+        finalists: stats?.competitions?.finalists || 0,
+        winners: stats?.competitions?.winners || 0,
+        successRate: stats?.competitions?.totalCompetitions 
+          ? `${Math.round(((stats.competitions.finalists + stats.competitions.winners) / stats.competitions.totalCompetitions) * 100)}%` 
+          : '0%'
+      };
+      
+      ExportService.exportToPDF(submissions, formattedStats);
+      return { success: true };
+    } catch (err) {
+      console.error('PDF export error:', err);
+      return { success: false, error: err.message };
+    }
+  }
 }
