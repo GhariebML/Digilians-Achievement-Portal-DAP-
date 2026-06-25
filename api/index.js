@@ -8,7 +8,6 @@ import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
 import config from './config.js';
-import nodemailer from 'nodemailer';
 
 const app = express();
 
@@ -87,30 +86,7 @@ loadLocalDb();
 
 // ----------------------------------------------------
 // EMAIL TEMPLATES & MOCK EMAIL SENDER
-// Initialize SMTP Transporter if credentials exist
-let transporter = null;
-const smtpHost = process.env.SMTP_HOST;
-const smtpPort = process.env.SMTP_PORT || 587;
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-
-if (smtpHost && smtpUser && smtpPass) {
-  try {
-    transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: parseInt(smtpPort),
-      secure: parseInt(smtpPort) === 465, // true for 465, false for other ports
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
-      }
-    });
-    console.log(`📧 SMTP Transporter initialized: ${smtpHost}:${smtpPort}`);
-  } catch (err) {
-    console.error("Failed to initialize SMTP transporter:", err);
-  }
-}
-
+// EMAIL TEMPLATES & RESEND EMAIL SERVICE
 // ----------------------------------------------------
 const sendMockEmail = async (email, subject, htmlContent) => {
   console.log("==========================================");
@@ -118,10 +94,23 @@ const sendMockEmail = async (email, subject, htmlContent) => {
   console.log(`Subject: ${subject}`);
   console.log("==========================================");
 
-  // 1. Resend Integration (Preferred)
-  if (process.env.RESEND_API_KEY) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log("==========================================");
+    console.log(`✉️ MOCK EMAIL LOGGED (NO RESEND_API_KEY CONFIGURED): ${email}`);
+    console.log("==========================================");
+    return false;
+  }
+
+  const from = process.env.RESEND_SENDER || 'onboarding@resend.dev';
+  const maxRetries = 3;
+  let attempt = 0;
+  let delay = 1000;
+
+  while (attempt < maxRetries) {
     try {
-      const from = process.env.RESEND_SENDER || 'onboarding@resend.dev';
+      attempt++;
+      console.log(`✉️ Attempting to send email via Resend API (Attempt ${attempt}/${maxRetries})...`);
+      
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -135,103 +124,30 @@ const sendMockEmail = async (email, subject, htmlContent) => {
           html: htmlContent
         })
       });
+
       if (res.ok) {
         const data = await res.json();
         console.log(`✉️ Resend email delivered successfully: ${data.id}`);
         return true;
       } else {
         const errText = await res.text();
-        console.error(`❌ Resend API Error: ${errText}`);
+        console.error(`❌ Resend API Error (Status ${res.status}): ${errText}`);
+        if (res.status >= 400 && res.status < 500) {
+          break; // Don't retry on client auth/bad request errors
+        }
       }
     } catch (err) {
-      console.error(`❌ Resend email delivery failed: ${err.message}`);
+      console.error(`❌ Resend API exception: ${err.message}`);
+    }
+
+    if (attempt < maxRetries) {
+      console.log(`⏳ Retrying Resend dispatch in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
     }
   }
 
-  // 2. SendGrid Integration
-  if (process.env.SENDGRID_API_KEY) {
-    try {
-      const from = process.env.SENDGRID_SENDER || 'no-reply@digilians.gov.eg';
-      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email }] }],
-          from: { email: from, name: 'Digilians Portal' },
-          subject: subject,
-          content: [{ type: 'text/html', value: htmlContent }]
-        })
-      });
-      if (res.ok) {
-        console.log(`✉️ SendGrid email delivered successfully`);
-        return true;
-      } else {
-        const errText = await res.text();
-        console.error(`❌ SendGrid API Error: ${errText}`);
-      }
-    } catch (err) {
-      console.error(`❌ SendGrid email delivery failed: ${err.message}`);
-    }
-  }
-
-  // 3. Mailgun Integration
-  if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
-    try {
-      const from = process.env.MAILGUN_SENDER || `Digilians Portal <postmaster@${process.env.MAILGUN_DOMAIN}>`;
-      const region = process.env.MAILGUN_REGION === 'EU' ? 'api.eu.mailgun.net' : 'api.mailgun.net';
-      const auth = Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString('base64');
-      
-      const form = new URLSearchParams();
-      form.append('from', from);
-      form.append('to', email);
-      form.append('subject', subject);
-      form.append('html', htmlContent);
-
-      const res = await fetch(`https://${region}/v3/${process.env.MAILGUN_DOMAIN}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: form
-      });
-      if (res.ok) {
-        const data = await res.json();
-        console.log(`✉️ Mailgun email delivered successfully: ${data.id}`);
-        return true;
-      } else {
-        const errText = await res.text();
-        console.error(`❌ Mailgun API Error: ${errText}`);
-      }
-    } catch (err) {
-      console.error(`❌ Mailgun email delivery failed: ${err.message}`);
-    }
-  }
-
-  // 4. Nodemailer SMTP Fallback
-  if (transporter) {
-    try {
-      const sender = process.env.SMTP_SENDER || `"Digilians Portal" <${smtpUser}>`;
-      const info = await transporter.sendMail({
-        from: sender,
-        to: email,
-        subject: subject,
-        html: htmlContent
-      });
-      console.log(`✉️ SMTP email delivered successfully: ${info.messageId}`);
-      return true;
-    } catch (err) {
-      console.error(`❌ SMTP email delivery failed: ${err.message}`);
-    }
-  }
-
-  // 5. Fallback Logger
-  console.log("==========================================");
-  console.log(`✉️ MOCK EMAIL LOGGED (NO REAL PROVIDER CONFIGURED): ${email}`);
-  console.log("==========================================");
+  console.error(`❌ Resend email dispatch failed permanently after ${attempt} attempts.`);
   return false;
 };
 
