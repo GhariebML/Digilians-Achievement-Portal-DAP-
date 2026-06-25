@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useDap } from '../../../context/DapContext';
 import { ExportController } from '../../../api/controllers/exportController';
+import { CompetitionController } from '../../../api/controllers/competitionController';
 import { 
   Users, Trophy, Activity, FileSpreadsheet, Search, Filter, 
   ArrowUpDown, ChevronRight, ChevronDown, ChevronUp, ExternalLink, 
-  RefreshCw, ShieldCheck, Download, Calendar, Clock, Award, FileText, CheckCircle2
+  RefreshCw, ShieldCheck, Download, Calendar, Clock, Award, FileText, CheckCircle2, Paperclip
 } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -433,9 +434,16 @@ export function AdminDashboard() {
 
                       <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.75rem', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{comp.date}</span>
-                        <a href={comp.verification_link || '#'} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>
-                          Proof Link <ExternalLink size={13} />
-                        </a>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <a href={comp.verification_link || '#'} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>
+                            Proof Link <ExternalLink size={13} />
+                          </a>
+                          {comp.proof_file_path && (
+                            <a href={CompetitionController.getProofFileUrl(comp.proof_file_path)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', color: 'var(--success)', fontWeight: 700, textDecoration: 'none' }} title="View uploaded proof document">
+                              Certificate <Paperclip size={13} />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -558,9 +566,16 @@ export function AdminDashboard() {
                           </td>
                           <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{comp.date || comp.deadline}</td>
                           <td onClick={e => e.stopPropagation()}>
-                            <a href={comp.verification_link || comp.competition_link || '#'} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.825rem', color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>
-                              Proof <ExternalLink size={13} />
-                            </a>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <a href={comp.verification_link || comp.competition_link || '#'} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.825rem', color: 'var(--primary)', fontWeight: 700, textDecoration: 'none' }}>
+                                Proof <ExternalLink size={13} />
+                              </a>
+                              {comp.proof_file_path && (
+                                <a href={CompetitionController.getProofFileUrl(comp.proof_file_path)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.825rem', color: 'var(--success)', fontWeight: 700, textDecoration: 'none' }} title="View uploaded certificate">
+                                  Certificate <Paperclip size={13} />
+                                </a>
+                              )}
+                            </div>
                           </td>
                           <td onClick={e => e.stopPropagation()}>
                             <select 

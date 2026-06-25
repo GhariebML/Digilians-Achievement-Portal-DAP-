@@ -27,4 +27,16 @@ export class CompetitionController {
     if (!competitionId) throw new Error("Competition ID is required for deletion.");
     return await SupabaseService.deleteSubmission(competitionId, userId, userName);
   }
+
+  static async uploadProofFile(file, userId) {
+    if (!userId) throw new Error("User ID is required to upload proof files.");
+    if (!file) throw new Error("No file provided for upload.");
+    if (file.size > 5242880) throw new Error("File exceeds 5MB size limit. Please select a smaller file.");
+    return await SupabaseService.uploadCompetitionProof(file, userId);
+  }
+
+  static getProofFileUrl(path) {
+    return SupabaseService.getCompetitionProofUrl(path);
+  }
 }
+

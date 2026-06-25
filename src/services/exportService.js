@@ -18,25 +18,22 @@ export class ExportService {
 
   static getConsistentColumns(c) {
     return {
-      'Competition ID': this.sanitizeCell(c.competition_id),
+      'Competition ID': this.sanitizeCell(c.id || c.competition_id),
+      'Student Name': this.sanitizeCell(c.leader_name || c.student_name || 'Student'),
+      'Email': this.sanitizeCell(c.leader_email || c.email || ''),
       'Competition Name': this.sanitizeCell(c.competition_name),
-      'Link': this.sanitizeCell(c.competition_link),
-      'Organizer': this.sanitizeCell(c.organizer),
-      'Category': this.sanitizeCell(c.category),
-      'Country': this.sanitizeCell(c.country),
-      'Mode': this.sanitizeCell(c.mode),
-      'Deadline': this.sanitizeCell(c.deadline),
+      'Organization': this.sanitizeCell(c.organization || c.organizer),
+      'Date': this.sanitizeCell(c.date || c.deadline),
       'Status': this.sanitizeCell(c.status),
-      'Team Name': this.sanitizeCell(c.team_name),
-      'Leader Name': this.sanitizeCell(c.leader_name),
-      'Leader Email': this.sanitizeCell(c.leader_email),
+      'Category': this.sanitizeCell(c.category),
+      'Project Name': this.sanitizeCell(c.project_name),
+      'Links': this.sanitizeCell(c.verification_link || c.competition_link || ''),
+      'Demo Link': this.sanitizeCell(c.demo_link),
+      'Proof File': this.sanitizeCell(c.proof_file_path),
       'Leader Phone': this.sanitizeCell(c.leader_phone),
       'Member Count': c.team_members ? c.team_members.length : 0,
-      'Project Name': this.sanitizeCell(c.project_name),
-      'Tech Stack': this.sanitizeCell(c.tech_stack),
-      'Achievement': this.sanitizeCell(c.achievement),
-      'Ranking': this.sanitizeCell(c.ranking),
-      'Prize': this.sanitizeCell(c.prize)
+      'Notes & Feedback': this.sanitizeCell(c.notes || c.description),
+      'Last Update': this.sanitizeCell(c.updated_at || c.created_at)
     };
   }
 

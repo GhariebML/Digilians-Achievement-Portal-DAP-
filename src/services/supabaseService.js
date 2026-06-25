@@ -304,4 +304,37 @@ export class SupabaseService {
       return logs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
     }
   }
+
+  // ==========================================
+  // STORAGE BUCKET WRAPPERS (competition-proofs)
+  // ==========================================
+  static async uploadCompetitionProof(file, userId) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`;
+
+    if (!this.isFallbackMode && this.client) {
+      const { data, error } = await this.client.storage
+        .from('competition-proofs')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (error) throw error;
+      return data.path;
+    } else {
+      // Local fallback simulation
+      console.log("Simulating file upload to competition-proofs bucket in local cache:", fileName);
+      return `mock-proofs/${fileName}`;
+    }
+  }
+
+  static getCompetitionProofUrl(path) {
+    if (!path) return null;
+    if (!this.isFallbackMode && this.client) {
+      const { data } = this.client.storage
+        .from('competition-proofs')
+        .getPublicUrl(path);
+      return data.publicUrl;
+    } else {
+      return `https://simulation-storage.digilians.gov.eg/competition-proofs/${path}`;
+    }
+  }
 }
+

@@ -82,3 +82,56 @@ USING (user_id = (SELECT id FROM public.users WHERE auth_id = auth.uid()));
 CREATE POLICY "Admins can view and create all logs" 
 ON public.activity_logs FOR ALL 
 USING (EXISTS (SELECT 1 FROM public.users WHERE auth_id = auth.uid() AND role = 'admin'));
+
+-- ==========================================
+-- 4. STORAGE BUCKETS & POLICIES
+-- ==========================================
+-- Insert the 'competition-proofs' bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'competition-proofs', 
+    'competition-proofs', 
+    true, 
+    5242880, -- 5MB limit in bytes
+    ARRAY['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+)
+ON CONFLICT (id) DO UPDATE SET 
+    public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Enable RLS on storage.objects (if not already enabled by Supabase default)
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Storage RLS Policies
+CREATE POLICY "Students can upload proof files to their directory" 
+ON storage.objects FOR INSERT 
+TO public
+WITH CHECK (
+    bucket_id = 'competition-proofs' AND 
+    auth.uid() = owner
+);
+
+CREATE POLICY "Students can update their own proof files" 
+ON storage.objects FOR UPDATE 
+TO public
+USING (
+    bucket_id = 'competition-proofs' AND 
+    auth.uid() = owner
+);
+
+CREATE POLICY "Students and Admins can view proof files" 
+ON storage.objects FOR SELECT 
+TO public
+USING (
+    bucket_id = 'competition-proofs'
+);
+
+CREATE POLICY "Students can delete their own proof files" 
+ON storage.objects FOR DELETE 
+TO public
+USING (
+    bucket_id = 'competition-proofs' AND 
+    auth.uid() = owner
+);
+

@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useDap } from '../../../context/DapContext';
+import { CompetitionController } from '../../../api/controllers/competitionController';
 import { 
   User, Trophy, Calendar, PlusCircle, ExternalLink, Edit3, Trash2, 
   ShieldCheck, Clock, Award, Users, Search, Filter, ArrowUpDown, 
-  Grid, List, AlertCircle, ChevronDown, ChevronUp, Link as LinkIcon 
+  Grid, List, AlertCircle, ChevronDown, ChevronUp, Link as LinkIcon, Paperclip 
 } from 'lucide-react';
 
 export function StudentDashboard() {
@@ -464,10 +465,15 @@ export function StudentDashboard() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', gap: '0.85rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <a href={comp.verification_link || comp.competition_link || '#'} target="_blank" rel="noopener noreferrer" className="saas-button saas-button--outline" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', gap: '0.35rem' }}>
                         Proof <ExternalLink size={13} />
                       </a>
+                      {comp.proof_file_path && (
+                        <a href={CompetitionController.getProofFileUrl(comp.proof_file_path)} target="_blank" rel="noopener noreferrer" className="saas-button saas-button--outline" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', gap: '0.35rem', color: 'var(--success)', borderColor: 'rgba(34,197,94,0.3)' }} title="View uploaded certificate">
+                          Certificate <Paperclip size={13} />
+                        </a>
+                      )}
                       {comp.demo_link && (
                         <a href={comp.demo_link} target="_blank" rel="noopener noreferrer" className="saas-button saas-button--outline" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', gap: '0.35rem', color: 'var(--primary)', borderColor: 'rgba(99,102,241,0.3)' }}>
                           Demo <LinkIcon size={13} />
@@ -542,10 +548,15 @@ export function StudentDashboard() {
                       <td style={{ color: 'var(--text-muted)' }}>{comp.date || comp.deadline}</td>
                       <td>{getStatusBadge(comp.status)}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                           <a href={comp.verification_link || '#'} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
                             Proof <ExternalLink size={12} />
                           </a>
+                          {comp.proof_file_path && (
+                            <a href={CompetitionController.getProofFileUrl(comp.proof_file_path)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600, textDecoration: 'none' }} title="View uploaded certificate">
+                              Certificate <Paperclip size={12} />
+                            </a>
+                          )}
                           {comp.demo_link && (
                             <a href={comp.demo_link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
                               Demo <ExternalLink size={12} />

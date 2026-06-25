@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDap } from '../../../context/DapContext';
-import { Trophy, Building, Calendar, Link as LinkIcon, User, Users, PlusCircle, Trash2, CheckCircle2, AlertCircle, ArrowLeft, FileText, Briefcase, Phone, Mail, Award } from 'lucide-react';
+import { CompetitionController } from '../../../api/controllers/competitionController';
+import { Trophy, Building, Calendar, Link as LinkIcon, User, Users, PlusCircle, Trash2, CheckCircle2, AlertCircle, ArrowLeft, FileText, Briefcase, Phone, Mail, Award, Upload, Paperclip, Loader2 } from 'lucide-react';
 
 export function CompetitionFormPage() {
   const { currentUser, selectedSubmission, handleCreateRecord, handleUpdateRecord, setActiveView } = useDap();
@@ -16,6 +17,7 @@ export function CompetitionFormPage() {
     verification_link: '',
     demo_link: '',
     notes: '',
+    proof_file_path: '',
     // Team Leader Info
     leader_name: currentUser ? currentUser.name : '',
     leader_email: currentUser ? currentUser.email : '',
@@ -27,6 +29,8 @@ export function CompetitionFormPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState('');
   const [error, setError] = useState('');
 
   const trackOptions = [
@@ -68,6 +72,7 @@ export function CompetitionFormPage() {
         verification_link: selectedSubmission.verification_link || selectedSubmission.competition_link || '',
         demo_link: selectedSubmission.demo_link || '',
         notes: selectedSubmission.notes || '',
+        proof_file_path: selectedSubmission.proof_file_path || '',
         // Leader
         leader_name: selectedSubmission.leader_name || (currentUser ? currentUser.name : ''),
         leader_email: selectedSubmission.leader_email || (currentUser ? currentUser.email : ''),
@@ -82,6 +87,25 @@ export function CompetitionFormPage() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploading(true);
+    setError('');
+    setUploadSuccess('');
+
+    try {
+      const path = await CompetitionController.uploadProofFile(file, currentUser?.id || 'guest-user');
+      setFormData(prev => ({ ...prev, proof_file_path: path }));
+      setUploadSuccess(`Successfully attached: ${file.name}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAddMember = () => {
@@ -237,6 +261,51 @@ export function CompetitionFormPage() {
                 <input type="url" name="demo_link" value={formData.demo_link} onChange={handleChange} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="https://github.com/..." />
               </div>
             </div>
+
+            {/* Proof File Dropzone / Upload Section */}
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Upload Official Proof / Certificate (PDF, PNG, JPG - Max 5MB)</label>
+              <div style={{ border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-md)', padding: '2rem 1.5rem', textAlign: 'center', background: 'var(--bg-surface)', transition: 'border-color 0.2s ease', cursor: 'pointer', position: 'relative' }}>
+                <input 
+                  type="file" 
+                  onChange={handleFileUpload} 
+                  accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} 
+                  title="Click to select proof file"
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                  {uploading ? (
+                    <>
+                      <Loader2 size={32} color="var(--primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>Uploading file securely to Supabase Storage...</span>
+                    </>
+                  ) : formData.proof_file_path ? (
+                    <>
+                      <div style={{ padding: '0.75rem', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', borderRadius: '50%' }}>
+                        <Paperclip size={28} />
+                      </div>
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--success)' }}>Proof File Attached Successfully!</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formData.proof_file_path}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Click or drag a new file to replace</span>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ padding: '0.75rem', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', borderRadius: '50%' }}>
+                        <Upload size={28} />
+                      </div>
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>Click to upload or drag & drop</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Securely stores in `competition-proofs` bucket (Max 5MB)</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              {uploadSuccess && (
+                <div style={{ marginTop: '0.75rem', padding: '0.5rem 1rem', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={16} /> {uploadSuccess}
+                </div>
+              )}
+            </div>
+
 
             <div style={{ gridColumn: 'span 2' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Additional Notes & Judging Feedback</label>
