@@ -30,3 +30,4 @@ api_mock_db.json
 
 
 .vercel
+.env*

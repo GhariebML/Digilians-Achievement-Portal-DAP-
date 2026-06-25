@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
-import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
 import config from './config.js';
@@ -84,141 +83,7 @@ const saveLocalDb = () => {
 // Initialize mock DB
 loadLocalDb();
 
-// ----------------------------------------------------
-// EMAIL TEMPLATES & MOCK EMAIL SENDER
-// EMAIL TEMPLATES & RESEND EMAIL SERVICE
-// ----------------------------------------------------
-const sendMockEmail = async (email, subject, htmlContent) => {
-  console.log("==========================================");
-  console.log(`✉️ EMAIL DISPATCH INITIATED FOR: ${email}`);
-  console.log(`Subject: ${subject}`);
-  console.log("==========================================");
-
-  if (!process.env.RESEND_API_KEY) {
-    console.log("==========================================");
-    console.log(`✉️ MOCK EMAIL LOGGED (NO RESEND_API_KEY CONFIGURED): ${email}`);
-    console.log("==========================================");
-    return false;
-  }
-
-  const from = process.env.RESEND_SENDER || 'onboarding@resend.dev';
-  const maxRetries = 3;
-  let attempt = 0;
-  let delay = 1000;
-
-  while (attempt < maxRetries) {
-    try {
-      attempt++;
-      console.log(`✉️ Attempting to send email via Resend API (Attempt ${attempt}/${maxRetries})...`);
-      
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: from,
-          to: email,
-          subject: subject,
-          html: htmlContent
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log(`✉️ Resend email delivered successfully: ${data.id}`);
-        return true;
-      } else {
-        const errText = await res.text();
-        console.error(`❌ Resend API Error (Status ${res.status}): ${errText}`);
-        if (res.status >= 400 && res.status < 500) {
-          break; // Don't retry on client auth/bad request errors
-        }
-      }
-    } catch (err) {
-      console.error(`❌ Resend API exception: ${err.message}`);
-    }
-
-    if (attempt < maxRetries) {
-      console.log(`⏳ Retrying Resend dispatch in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 2;
-    }
-  }
-
-  console.error(`❌ Resend email dispatch failed permanently after ${attempt} attempts.`);
-  return false;
-};
-
-const generateOtpEmailHtml = (fullName, otpCode) => {
-  return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
-      <div style="background: linear-gradient(135deg, #1e40af 0%, #1e1b4b 100%); padding: 35px 20px; border-radius: 8px 8px 0 0; text-align: center; color: #ffffff; border-bottom: 4px solid #06b6d4;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
-          <div style="width: 32px; height: 32px; border-radius: 8px; background: #06b6d4; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #ffffff; font-family: monospace;">D</div>
-          <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.03em;">DIGILIANS</span>
-        </div>
-        <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">Account Verification Required</h2>
-      </div>
-      <div style="padding: 30px 24px; background-color: #ffffff;">
-        <p style="font-size: 16px; margin-top: 0; color: #1e293b;">Welcome to <strong>Digilians Achievement Portal</strong>.</p>
-        <p style="font-size: 15px; line-height: 1.6; color: #475569;">Thank you for registering on our platform. Please use the following 6-digit verification code to activate your account:</p>
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 25px; text-align: center; margin: 30px 0;">
-          <div style="font-size: 38px; font-weight: 800; letter-spacing: 0.3em; color: #1e40af; font-family: monospace; margin-left: 0.3em;">${otpCode}</div>
-          <p style="margin: 12px 0 0 0; font-size: 13px; color: #64748b;">This code expires in <strong style="color: #0f172a;">10 minutes</strong>. Do not share this OTP.</p>
-        </div>
-        <p style="font-size: 14px; line-height: 1.6; color: #64748b;">If you did not initiate this registration, you can safely ignore this email.</p>
-      </div>
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #64748b; font-size: 13px;">
-        <p style="margin: 0 0 6px 0;">Need assistance? Contact our support team at <a href="mailto:support@digilians.gov.eg" style="color: #1e40af; text-decoration: none; font-weight: 600;">support@digilians.gov.eg</a></p>
-        <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Digilians Achievement Portal. All rights reserved.</p>
-      </div>
-    </div>
-  `;
-};
-
-const generateResetEmailHtml = (fullName, otpCode) => {
-  return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
-      <div style="background: linear-gradient(135deg, #1e40af 0%, #1e1b4b 100%); padding: 35px 20px; border-radius: 8px 8px 0 0; text-align: center; color: #ffffff; border-bottom: 4px solid #06b6d4;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
-          <div style="width: 32px; height: 32px; border-radius: 8px; background: #06b6d4; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #ffffff; font-family: monospace;">D</div>
-          <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.03em;">DIGILIANS</span>
-        </div>
-        <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">Password Recovery Request</h2>
-      </div>
-      <div style="padding: 30px 24px; background-color: #ffffff;">
-        <p style="font-size: 16px; margin-top: 0; color: #1e293b;">Hello <strong>${fullName}</strong>,</p>
-        <p style="font-size: 15px; line-height: 1.6; color: #475569;">We received a request to recover your password. Please use the following 6-digit verification code to complete the recovery process:</p>
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #06b6d4; border-radius: 8px; padding: 25px; text-align: center; margin: 30px 0;">
-          <div style="font-size: 38px; font-weight: 800; letter-spacing: 0.3em; color: #1e40af; font-family: monospace; margin-left: 0.3em;">${otpCode}</div>
-          <p style="margin: 12px 0 0 0; font-size: 13px; color: #64748b;">This code expires in <strong style="color: #0f172a;">10 minutes</strong>. Do not share this OTP.</p>
-        </div>
-        <p style="font-size: 14px; line-height: 1.6; color: #64748b;">If you did not request a password reset, please secure your account immediately or notify us.</p>
-      </div>
-      <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; color: #64748b; font-size: 13px;">
-        <p style="margin: 0 0 6px 0;">Need assistance? Contact our support team at <a href="mailto:support@digilians.gov.eg" style="color: #1e40af; text-decoration: none; font-weight: 600;">support@digilians.gov.eg</a></p>
-        <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Digilians Achievement Portal. All rights reserved.</p>
-      </div>
-    </div>
-  `;
-};
-
-// ----------------------------------------------------
-// SECURITY MITIGATIONS: RATE LIMITERS
-// ----------------------------------------------------
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit signup/login/OTP calls to 20 per window
-  message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' }
-});
-
-const apiLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 100, // General limit
-  message: { error: 'Rate limit exceeded. Please wait before retrying.' }
-});
+// Legacy email utilities and auth rate limiters removed as Supabase Auth now handles secure transactional emails and built-in rate limits natively.
 
 // Helper: Input Sanitization
 const sanitizeString = (str) => {
@@ -245,17 +110,46 @@ const sanitizeObject = (obj) => {
 // ----------------------------------------------------
 // AUTHENTICATION MIDDLEWARE
 // ----------------------------------------------------
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.accessToken;
 
   if (!token) return res.status(401).json({ error: 'Access token required. Please sign in.' });
 
-  jwt.verify(token, config.jwtSecret, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid or expired access token.' });
-    req.user = user;
+  try {
+    if (config.isFallbackMode) {
+      try {
+        const decoded = jwt.verify(token, config.jwtSecret);
+        req.user = decoded;
+        return next();
+      } catch (jwtErr) {
+        // Fall through to standard validation
+      }
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      return res.status(403).json({ error: 'Invalid or expired access token.' });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    req.user = {
+      userId: user.id,
+      email: user.email,
+      role: profile?.role || 'student',
+      name: profile?.full_name || user.user_metadata?.full_name || ''
+    };
+
     next();
-  });
+  } catch (err) {
+    console.error("authenticateToken middleware error:", err);
+    res.status(403).json({ error: 'Invalid or expired access token.' });
+  }
 };
 
 const requireAdmin = (req, res, next) => {
@@ -311,645 +205,7 @@ const logActivity = async (userId, action, details) => {
   }
 };
 
-// ----------------------------------------------------
-// PHASE 2 & 5: AUTHENTICATION ENDPOINTS
-// ----------------------------------------------------
-
-// 1. Sign Up Route
-app.post('/api/auth/register', authLimiter, async (req, res) => {
-  try {
-    const { name, email, password, confirmPassword } = req.body;
-    
-    if (!name || !email || !password || !confirmPassword) {
-      return res.status(400).json({ error: 'All fields (Name, Email, Password, Confirm Password) are required.' });
-    }
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: 'Passwords do not match.' });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
-    }
-
-    const cleanName = sanitizeString(name);
-    const cleanEmail = sanitizeString(email).toLowerCase();
-
-    // Check if user already exists
-    let existingUser = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
-      existingUser = data;
-    } else {
-      existingUser = localDb.users.find(u => u.email === cleanEmail);
-    }
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'An account with this email address already exists.' });
-    }
-
-    // Hash Password
-    const passwordHash = await bcrypt.hash(password, 10);
-    const userId = crypto.randomUUID();
-
-    // Create User
-    const newUser = {
-      user_id: userId,
-      full_name: cleanName,
-      email: cleanEmail,
-      password_hash: passwordHash,
-      email_verified: false,
-      role: 'student',
-      status: 'active',
-      created_at: new Date().toISOString()
-    };
-
-    if (!config.isFallbackMode) {
-      const { error } = await supabase.from('users').insert([newUser]);
-      if (error) throw error;
-    } else {
-      localDb.users.push(newUser);
-      saveLocalDb();
-    }
-
-    // Generate secure 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
-
-    const newOtp = {
-      otp_id: crypto.randomUUID(),
-      user_id: userId,
-      otp_code: otpCode,
-      otp_type: 'email_verification',
-      expires_at: expiresAt,
-      attempts: 0,
-      created_at: new Date().toISOString()
-    };
-
-    if (!config.isFallbackMode) {
-      const { error } = await supabase.from('otp').insert([newOtp]);
-      if (error) throw error;
-    } else {
-      localDb.otp.push(newOtp);
-      saveLocalDb();
-    }
-
-    // Send simulated email
-    sendMockEmail(cleanEmail, 'Verify Your Digilians Account', generateOtpEmailHtml(cleanName, otpCode));
-
-    res.status(201).json({ 
-      message: 'Registration successful. Verification OTP sent to your email.',
-      email: cleanEmail,
-      // For testing convenience locally, return OTP in response body
-      otpCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined
-    });
-  } catch (err) {
-    console.error("Register Error:", err);
-    res.status(500).json({ error: 'Server registration error: ' + err.message });
-  }
-});
-
-// 2. Verify OTP Route
-app.post('/api/auth/verify-otp', authLimiter, async (req, res) => {
-  try {
-    const { email, otpCode } = req.body;
-    if (!email || !otpCode) {
-      return res.status(400).json({ error: 'Email and OTP verification code are required.' });
-    }
-
-    const cleanEmail = email.toLowerCase();
-    
-    // Fetch User
-    let user = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
-      user = data;
-    } else {
-      user = localDb.users.find(u => u.email === cleanEmail);
-    }
-
-    if (!user) {
-      return res.status(400).json({ error: 'User account not found.' });
-    }
-
-    // Fetch OTP record
-    let otpRecord = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('otp').select('*').eq('user_id', user.user_id).eq('otp_type', 'email_verification').order('created_at', { ascending: false }).limit(1).maybeSingle();
-      otpRecord = data;
-    } else {
-      const records = localDb.otp.filter(o => o.user_id === user.user_id && o.otp_type === 'email_verification');
-      otpRecord = records.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
-    }
-
-    if (!otpRecord) {
-      return res.status(400).json({ error: 'No OTP request found for this account.' });
-    }
-
-    // Expiry check
-    if (new Date() > new Date(otpRecord.expires_at)) {
-      return res.status(400).json({ error: 'OTP code has expired. Please request a new code.' });
-    }
-
-    // Limit attempts (max 3)
-    if (otpRecord.attempts >= 3) {
-      return res.status(400).json({ error: 'Maximum verification attempts exceeded. Please generate a new code.' });
-    }
-
-    // Attempt incrementing
-    const newAttempts = otpRecord.attempts + 1;
-    if (!config.isFallbackMode) {
-      await supabase.from('otp').update({ attempts: newAttempts }).eq('otp_id', otpRecord.otp_id);
-    } else {
-      otpRecord.attempts = newAttempts;
-      saveLocalDb();
-    }
-
-    // Code match validation
-    if (otpRecord.otp_code !== otpCode.trim()) {
-      return res.status(400).json({ error: 'Invalid verification code.' });
-    }
-
-    // Mark verified
-    if (!config.isFallbackMode) {
-      await supabase.from('users').update({ email_verified: true }).eq('user_id', user.user_id);
-    } else {
-      user.email_verified = true;
-      saveLocalDb();
-    }
-
-    // Delete verification OTP
-    if (!config.isFallbackMode) {
-      await supabase.from('otp').delete().eq('otp_id', otpRecord.otp_id);
-    } else {
-      localDb.otp = localDb.otp.filter(o => o.otp_id !== otpRecord.otp_id);
-      saveLocalDb();
-    }
-
-    // Create session & JWT
-    const accessToken = jwt.sign(
-      { userId: user.user_id, email: user.email, role: user.role, name: user.full_name },
-      config.jwtSecret,
-      { expiresIn: '1h' }
-    );
-    const refreshToken = jwt.sign(
-      { userId: user.user_id },
-      config.jwtRefreshSecret,
-      { expiresIn: '7d' }
-    );
-
-    // Save session in sessions table
-    const device = req.headers['user-agent'] || 'Unknown Device';
-    const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
-    
-    const newSession = {
-      session_id: crypto.randomUUID(),
-      user_id: user.user_id,
-      device,
-      ip_address: ipAddress,
-      login_time: new Date().toISOString()
-    };
-
-    if (!config.isFallbackMode) {
-      await supabase.from('sessions').insert([newSession]);
-      await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('user_id', user.user_id);
-    } else {
-      localDb.sessions.push(newSession);
-      user.last_login = new Date().toISOString();
-      saveLocalDb();
-    }
-
-    await logActivity(user.user_id, 'Account Verification', `${user.full_name} completed email verification and activated account.`);
-
-    // Set refresh token in HTTP-only Cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-
-    res.json({
-      message: 'Account verified and active.',
-      accessToken,
-      user: {
-        id: user.user_id,
-        name: user.full_name,
-        email: user.email,
-        role: user.role,
-        email_verified: true,
-        created_at: user.created_at
-      }
-    });
-  } catch (err) {
-    console.error("Verify OTP error:", err);
-    res.status(500).json({ error: 'Server OTP verification error: ' + err.message });
-  }
-});
-
-// 3. Resend OTP Route
-app.post('/api/auth/resend-otp', authLimiter, async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email is required.' });
-
-    const cleanEmail = email.toLowerCase();
-    
-    // Fetch User
-    let user = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
-      user = data;
-    } else {
-      user = localDb.users.find(u => u.email === cleanEmail);
-    }
-
-    if (!user) return res.status(400).json({ error: 'No user account found with this email.' });
-
-    // Generate new OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
-
-    const newOtp = {
-      otp_id: crypto.randomUUID(),
-      user_id: user.user_id,
-      otp_code: otpCode,
-      otp_type: 'email_verification',
-      expires_at: expiresAt,
-      attempts: 0,
-      created_at: new Date().toISOString()
-    };
-
-    if (!config.isFallbackMode) {
-      // Clear old verification OTPs first
-      await supabase.from('otp').delete().eq('user_id', user.user_id).eq('otp_type', 'email_verification');
-      await supabase.from('otp').insert([newOtp]);
-    } else {
-      localDb.otp = localDb.otp.filter(o => !(o.user_id === user.user_id && o.otp_type === 'email_verification'));
-      localDb.otp.push(newOtp);
-      saveLocalDb();
-    }
-
-    // Email
-    sendMockEmail(cleanEmail, 'Verify Your Digilians Account (New Code)', generateOtpEmailHtml(user.full_name, otpCode));
-
-    res.json({ 
-      message: 'A new 6-digit OTP code has been sent to your email.',
-      otpCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined
-    });
-  } catch (err) {
-    console.error("Resend OTP Error:", err);
-    res.status(500).json({ error: 'Server OTP generation error: ' + err.message });
-  }
-});
-
-// 4. Log In Route
-app.post('/api/auth/login', authLimiter, async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
-    }
-
-    const cleanEmail = email.toLowerCase();
-
-    // Fetch User
-    let user = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
-      user = data;
-    } else {
-      user = localDb.users.find(u => u.email === cleanEmail);
-    }
-
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
-    }
-
-    // Check status
-    if (user.status === 'suspended') {
-      return res.status(403).json({ error: 'Your account has been suspended. Please contact administrator.' });
-    }
-
-    // Check password
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
-    }
-
-    // OTP Verification check
-    if (!user.email_verified) {
-      // Trigger new OTP automatically
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const newOtp = {
-        otp_id: crypto.randomUUID(),
-        user_id: user.user_id,
-        otp_code: otpCode,
-        otp_type: 'email_verification',
-        expires_at: expiresAt,
-        attempts: 0,
-        created_at: new Date().toISOString()
-      };
-      if (!config.isFallbackMode) {
-        await supabase.from('otp').delete().eq('user_id', user.user_id).eq('otp_type', 'email_verification');
-        await supabase.from('otp').insert([newOtp]);
-      } else {
-        localDb.otp = localDb.otp.filter(o => !(o.user_id === user.user_id && o.otp_type === 'email_verification'));
-        localDb.otp.push(newOtp);
-        saveLocalDb();
-      }
-      sendMockEmail(cleanEmail, 'Verify Your Digilians Account', generateOtpEmailHtml(user.full_name, otpCode));
-
-      return res.status(401).json({ 
-        error: 'Your email address has not been verified yet. Please verify your email first.',
-        unverified: true,
-        email: cleanEmail,
-        otpCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined
-      });
-    }
-
-    // Sign Access & Refresh Tokens
-    const accessToken = jwt.sign(
-      { userId: user.user_id, email: user.email, role: user.role, name: user.full_name },
-      config.jwtSecret,
-      { expiresIn: '1h' }
-    );
-    const refreshToken = jwt.sign(
-      { userId: user.user_id },
-      config.jwtRefreshSecret,
-      { expiresIn: '7d' }
-    );
-
-    // Save session
-    const device = req.headers['user-agent'] || 'Unknown Device';
-    const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
-
-    const newSession = {
-      session_id: crypto.randomUUID(),
-      user_id: user.user_id,
-      device,
-      ip_address: ipAddress,
-      login_time: new Date().toISOString()
-    };
-
-    if (!config.isFallbackMode) {
-      await supabase.from('sessions').insert([newSession]);
-      await supabase.from('users').update({ last_login: new Date().toISOString() }).eq('user_id', user.user_id);
-    } else {
-      localDb.sessions.push(newSession);
-      user.last_login = new Date().toISOString();
-      saveLocalDb();
-    }
-
-    await logActivity(user.user_id, 'User Login', `${user.full_name} logged in from device: ${device}`);
-
-    // Set cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    res.json({
-      message: 'Login successful.',
-      accessToken,
-      user: {
-        id: user.user_id,
-        name: user.full_name,
-        email: user.email,
-        role: user.role,
-        email_verified: true,
-        created_at: user.created_at
-      }
-    });
-  } catch (err) {
-    console.error("Login Error:", err);
-    res.status(500).json({ error: 'Server authentication error: ' + err.message });
-  }
-});
-
-// 5. Token Refresh Route
-app.post('/api/auth/refresh', async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
-    if (!refreshToken) return res.status(401).json({ error: 'Refresh token required.' });
-
-    jwt.verify(refreshToken, config.jwtRefreshSecret, async (err, decoded) => {
-      if (err) return res.status(403).json({ error: 'Invalid or expired refresh token. Please sign in again.' });
-
-      // Fetch User
-      let user = null;
-      if (!config.isFallbackMode) {
-        const { data } = await supabase.from('users').select('*').eq('user_id', decoded.userId).maybeSingle();
-        user = data;
-      } else {
-        user = localDb.users.find(u => u.user_id === decoded.userId);
-      }
-
-      if (!user || user.status === 'suspended') {
-        return res.status(403).json({ error: 'User account disabled or not found.' });
-      }
-
-      // Sign new Access Token
-      const accessToken = jwt.sign(
-        { userId: user.user_id, email: user.email, role: user.role, name: user.full_name },
-        config.jwtSecret,
-        { expiresIn: '1h' }
-      );
-
-      res.json({ accessToken });
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Server token refresh error.' });
-  }
-});
-
-// 6. Log Out Route
-app.post('/api/auth/logout', authenticateToken, async (req, res) => {
-  try {
-    // Delete session from sessions table
-    if (!config.isFallbackMode) {
-      await supabase.from('sessions').delete().eq('user_id', req.user.userId);
-    } else {
-      localDb.sessions = localDb.sessions.filter(s => s.user_id !== req.user.userId);
-      saveLocalDb();
-    }
-
-    await logActivity(req.user.userId, 'User Logout', `${req.user.name} logged out.`);
-
-    res.clearCookie('refreshToken');
-    res.json({ message: 'Securely logged out.' });
-  } catch (err) {
-    res.status(500).json({ error: 'Server logout error.' });
-  }
-});
-
-// 7. Get Current User ("Me") Route
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
-  try {
-    let user = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('user_id', req.user.userId).maybeSingle();
-      user = data;
-    } else {
-      user = localDb.users.find(u => u.user_id === req.user.userId);
-    }
-
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    res.json({
-      user: {
-        id: user.user_id,
-        name: user.full_name,
-        email: user.email,
-        role: user.role,
-        email_verified: user.email_verified,
-        created_at: user.created_at
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Error retrieving user profile.' });
-  }
-});
-
-// 8. Forgot Password Route
-app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email address is required.' });
-
-    const cleanEmail = email.toLowerCase();
-
-    // Fetch User
-    let user = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
-      user = data;
-    } else {
-      user = localDb.users.find(u => u.email === cleanEmail);
-    }
-
-    if (!user) {
-      // Security practice: Don't explicitly reveal if email exists, return generic success
-      return res.json({ message: 'If this email exists in our system, an OTP code has been sent.' });
-    }
-
-    // Generate secure reset OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 mins
-
-    const newOtp = {
-      otp_id: crypto.randomUUID(),
-      user_id: user.user_id,
-      otp_code: otpCode,
-      otp_type: 'password_reset',
-      expires_at: expiresAt,
-      attempts: 0,
-      created_at: new Date().toISOString()
-    };
-
-    if (!config.isFallbackMode) {
-      await supabase.from('otp').delete().eq('user_id', user.user_id).eq('otp_type', 'password_reset');
-      await supabase.from('otp').insert([newOtp]);
-    } else {
-      localDb.otp = localDb.otp.filter(o => !(o.user_id === user.user_id && o.otp_type === 'password_reset'));
-      localDb.otp.push(newOtp);
-      saveLocalDb();
-    }
-
-    sendMockEmail(cleanEmail, 'Reset Your Digilians Password', generateResetEmailHtml(user.full_name, otpCode));
-
-    res.json({
-      message: 'If this email exists in our system, an OTP code has been sent.',
-      // For local testing convenience
-      otpCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined
-    });
-  } catch (err) {
-    console.error("Forgot Password error:", err);
-    res.status(500).json({ error: 'Password recovery error.' });
-  }
-});
-
-// 9. Reset Password Route (Verify & Reset)
-app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
-  try {
-    const { email, otpCode, newPassword } = req.body;
-    if (!email || !otpCode || !newPassword) {
-      return res.status(400).json({ error: 'All fields (Email, OTP Code, New Password) are required.' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
-    }
-
-    const cleanEmail = email.toLowerCase();
-
-    // Fetch User
-    let user = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('users').select('*').eq('email', cleanEmail).maybeSingle();
-      user = data;
-    } else {
-      user = localDb.users.find(u => u.email === cleanEmail);
-    }
-
-    if (!user) return res.status(400).json({ error: 'Reset request is invalid.' });
-
-    // Fetch OTP record
-    let otpRecord = null;
-    if (!config.isFallbackMode) {
-      const { data } = await supabase.from('otp').select('*').eq('user_id', user.user_id).eq('otp_type', 'password_reset').order('created_at', { ascending: false }).limit(1).maybeSingle();
-      otpRecord = data;
-    } else {
-      const records = localDb.otp.filter(o => o.user_id === user.user_id && o.otp_type === 'password_reset');
-      otpRecord = records.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
-    }
-
-    if (!otpRecord) return res.status(400).json({ error: 'Invalid or missing OTP code.' });
-
-    // Expiry check
-    if (new Date() > new Date(otpRecord.expires_at)) {
-      return res.status(400).json({ error: 'OTP code has expired.' });
-    }
-
-    // Attempts validation
-    if (otpRecord.attempts >= 3) {
-      return res.status(400).json({ error: 'Max attempts exceeded.' });
-    }
-
-    // Code match
-    if (otpRecord.otp_code !== otpCode.trim()) {
-      const newAttempts = otpRecord.attempts + 1;
-      if (!config.isFallbackMode) {
-        await supabase.from('otp').update({ attempts: newAttempts }).eq('otp_id', otpRecord.otp_id);
-      } else {
-        otpRecord.attempts = newAttempts;
-        saveLocalDb();
-      }
-      return res.status(400).json({ error: 'Invalid OTP code.' });
-    }
-
-    // Hash New Password
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-
-    // Save Password
-    if (!config.isFallbackMode) {
-      await supabase.from('users').update({ password_hash: passwordHash, email_verified: true }).eq('user_id', user.user_id);
-      await supabase.from('otp').delete().eq('otp_id', otpRecord.otp_id);
-    } else {
-      user.password_hash = passwordHash;
-      user.email_verified = true;
-      localDb.otp = localDb.otp.filter(o => o.otp_id !== otpRecord.otp_id);
-      saveLocalDb();
-    }
-
-    await logActivity(user.user_id, 'Password Reset', `${user.full_name} completed password recovery and updated password.`);
-
-    res.json({ message: 'Password reset successfully. You can now log in.' });
-  } catch (err) {
-    console.error("Reset password error:", err);
-    res.status(500).json({ error: 'Error resetting password.' });
-  }
-});
+// Custom authentication endpoints removed in favor of direct Supabase Authentication flow on the frontend.
 
 
 // ----------------------------------------------------
@@ -971,15 +227,21 @@ app.get('/api/competitions', authenticateToken, async (req, res) => {
     } else {
       // Regular student sees only their own
       if (!config.isFallbackMode) {
-        const { data, error } = await supabase.from('competitions').select('*').eq('user_id', req.user.userId).order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('competitions').select('*').eq('owner_id', req.user.userId).order('created_at', { ascending: false });
         if (error) throw error;
         list = data;
       } else {
-        list = localDb.competitions.filter(c => c.user_id === req.user.userId).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        list = localDb.competitions.filter(c => (c.owner_id === req.user.userId || c.user_id === req.user.userId)).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
       }
     }
 
-    res.json(list);
+    // Map owner_id to user_id for frontend compatibility
+    const mappedList = list.map(item => ({
+      ...item,
+      user_id: item.owner_id || item.user_id
+    }));
+
+    res.json(mappedList);
   } catch (err) {
     console.error("Fetch Competitions Error:", err);
     res.status(500).json({ error: 'Error retrieving competition entries.' });
@@ -996,7 +258,7 @@ app.post('/api/competitions', authenticateToken, async (req, res) => {
 
     const newRecord = {
       id: crypto.randomUUID(),
-      user_id: req.user.userId,
+      owner_id: req.user.userId,
       competition_name: cleanData.competition_name,
       description: cleanData.description || '',
       organization: cleanData.organization || '',
@@ -1026,13 +288,17 @@ app.post('/api/competitions', authenticateToken, async (req, res) => {
     // Add extra tracking details for Sheet columns compatibility
     const syncData = {
       ...saved,
+      user_id: saved.owner_id || saved.user_id,
       leader_name: req.user.name,
       leader_email: req.user.email,
-      team_members: req.body.team_members || [] // Maintain team lists if passed
+      team_members: req.body.team_members || []
     };
     syncToGoogleSheets('create', syncData);
 
-    res.status(201).json(saved);
+    res.status(201).json({
+      ...saved,
+      user_id: saved.owner_id || saved.user_id
+    });
   } catch (err) {
     console.error("Create Submission Error:", err);
     res.status(500).json({ error: 'Error creating competition solution.' });
@@ -1057,7 +323,8 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
     if (!original) return res.status(404).json({ error: 'Competition entry not found.' });
 
     // Phase 3: Ownership check - Only logged-in owner can edit, unless admin
-    if (req.user.role !== 'admin' && original.user_id !== req.user.userId) {
+    const ownerId = original.owner_id || original.user_id;
+    if (req.user.role !== 'admin' && ownerId !== req.user.userId) {
       return res.status(403).json({ error: 'Unauthorized. You do not own this competition entry.' });
     }
 
@@ -1098,13 +365,17 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
     // Sync to Sheets
     const syncData = {
       ...updated,
+      user_id: updated.owner_id || updated.user_id,
       leader_name: req.user.role === 'admin' ? (cleanData.leader_name || updated.leader_name) : req.user.name,
       leader_email: req.user.role === 'admin' ? (cleanData.leader_email || updated.leader_email) : req.user.email,
       team_members: req.body.team_members || []
     };
     syncToGoogleSheets('update', syncData);
 
-    res.json(updated);
+    res.json({
+      ...updated,
+      user_id: updated.owner_id || updated.user_id
+    });
   } catch (err) {
     console.error("Update Submission Error:", err);
     res.status(500).json({ error: 'Error updating competition solution.' });
@@ -1113,8 +384,6 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
 
 // 4. Delete Competition Entry
 app.post('/api/competitions/delete/:id', authenticateToken, async (req, res) => {
-  // Use POST route with URL params or standard DELETE, let's allow both.
-  // Many client proxies / CORS blocks DELETE, so supporting POST /delete/:id is highly robust!
   return deleteCompetitionHandler(req, res);
 });
 
@@ -1138,7 +407,8 @@ async function deleteCompetitionHandler(req, res) {
     if (!original) return res.status(404).json({ error: 'Competition entry not found.' });
 
     // Phase 3: Only owner or admin can delete
-    if (req.user.role !== 'admin' && original.user_id !== req.user.userId) {
+    const ownerId = original.owner_id || original.user_id;
+    if (req.user.role !== 'admin' && ownerId !== req.user.userId) {
       return res.status(403).json({ error: 'Unauthorized. You do not own this competition entry.' });
     }
 
@@ -1174,7 +444,7 @@ app.get('/api/admin/stats', authenticateToken, requireAdmin, async (req, res) =>
     let allComps = [];
     
     if (!config.isFallbackMode) {
-      const { data: users } = await supabase.from('users').select('*');
+      const { data: users } = await supabase.from('profiles').select('*');
       const { data: comps } = await supabase.from('competitions').select('*');
       allUsers = users || [];
       allComps = comps || [];
@@ -1185,12 +455,12 @@ app.get('/api/admin/stats', authenticateToken, requireAdmin, async (req, res) =>
 
     // 1. User Statistics
     const totalUsers = allUsers.length;
-    const verifiedUsers = allUsers.filter(u => u.email_verified).length;
+    const verifiedUsers = allUsers.length;
     
-    // Active: logged in last 7 days
+    // Active: updated last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const activeUsers = allUsers.filter(u => u.last_login && new Date(u.last_login) > sevenDaysAgo).length;
+    const activeUsers = allUsers.filter(u => u.updated_at && new Date(u.updated_at) > sevenDaysAgo).length;
     
     // New: registered in last 24 hours
     const oneDayAgo = new Date();
@@ -1256,26 +526,39 @@ app.get('/api/admin/students', authenticateToken, requireAdmin, async (req, res)
   try {
     let students = [];
     if (!config.isFallbackMode) {
-      const { data, error } = await supabase.from('users').select('*').eq('role', 'student').order('created_at', { ascending: false });
-      if (error) throw error;
-      students = data;
+      const { data: { users }, error: authErr } = await supabase.auth.admin.listUsers();
+      if (authErr) throw authErr;
+      
+      const { data: profiles, error: profileErr } = await supabase.from('profiles').select('*').eq('role', 'student');
+      if (profileErr) throw profileErr;
+      
+      students = profiles.map(p => {
+        const u = users.find(user => user.id === p.id);
+        return {
+          id: p.id,
+          name: p.full_name,
+          email: u ? u.email : '',
+          email_verified: u ? !!u.email_confirmed_at : false,
+          created_at: p.created_at,
+          last_login: u ? u.last_sign_in_at : null,
+          status: 'active'
+        };
+      });
     } else {
-      students = localDb.users.filter(u => u.role === 'student').sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      students = localDb.users.filter(u => u.role === 'student').sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).map(s => ({
+        id: s.user_id,
+        name: s.full_name,
+        email: s.email,
+        email_verified: s.email_verified,
+        created_at: s.created_at,
+        last_login: s.last_login,
+        status: s.status
+      }));
     }
-    
-    // Map secure fields only
-    const cleanList = students.map(s => ({
-      id: s.user_id,
-      name: s.full_name,
-      email: s.email,
-      email_verified: s.email_verified,
-      created_at: s.created_at,
-      last_login: s.last_login,
-      status: s.status
-    }));
 
-    res.json(cleanList);
+    res.json(students);
   } catch (err) {
+    console.error("Fetch student roster error:", err);
     res.status(500).json({ error: 'Failed to fetch student roster.' });
   }
 });
@@ -1294,19 +577,31 @@ app.post('/api/admin/sync-all', authenticateToken, requireAdmin, async (req, res
     console.log(`Starting force sync of all ${competitions.length} records to Google Sheets...`);
     // Iterate and sync
     for (let comp of competitions) {
-      // Fetch associated student profile for names/emails
       let student = null;
       if (!config.isFallbackMode) {
-        const { data } = await supabase.from('users').select('*').eq('user_id', comp.user_id).maybeSingle();
-        student = data;
+        const ownerId = comp.owner_id || comp.user_id;
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', ownerId).maybeSingle();
+        student = profile;
+        if (student) {
+          try {
+            const { data: authUser } = await supabase.auth.admin.getUserById(ownerId);
+            if (authUser && authUser.user) {
+              student.email = authUser.user.email;
+            }
+          } catch (getUserErr) {
+            console.warn("Could not retrieve user email via admin tool during sync-all:", getUserErr);
+          }
+        }
       } else {
-        student = localDb.users.find(u => u.user_id === comp.user_id);
+        const ownerId = comp.owner_id || comp.user_id;
+        student = localDb.users.find(u => (u.user_id === ownerId || u.id === ownerId));
       }
       
       const syncData = {
         ...comp,
+        user_id: comp.owner_id || comp.user_id,
         leader_name: student ? student.full_name : 'Student',
-        leader_email: student ? student.email : ''
+        leader_email: (student ? student.email : '') || ''
       };
       await syncToGoogleSheets('update', syncData);
     }

@@ -1,3 +1,19 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+
+// Listen to auth state changes to keep token updated dynamically
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    SupabaseService.setToken(session.access_token);
+  } else {
+    SupabaseService.setToken(null);
+  }
+});
+
 export class SupabaseService {
   static token = null;
 
@@ -15,8 +31,7 @@ export class SupabaseService {
   }
 
   static initialize(url, key) {
-    // Client-side initialization returns true now as connection state is managed securely on backend API
-    console.log("Supabase Service initialized via Backend API Gateway.");
+    console.log("Supabase Client initialized on frontend.");
     return true;
   }
 
@@ -24,87 +39,173 @@ export class SupabaseService {
   // AUTHENTICATION GATEWAY
   // ==========================================
   static async registerStudent({ name, email, password, confirmPassword }) {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, confirmPassword: confirmPassword || password })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to register student account.');
+    if (password !== confirmPassword) {
+      throw new Error('Passwords do not match.');
     }
-    return data;
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: name,
+          role: 'student'
+        }
+      }
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    // Return simulated response for UI compatibility
+    return {
+      message: 'Registration successful. Verification OTP sent to your email.',
+      email,
+      otpCode: undefined, // Suppressed in production, handled by Supabase Auth email templates
+      user: data.user
+    };
   }
 
   static async verifyOtp({ email, otpCode }) {
-    const res = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otpCode })
+    const { data, error } = await supabaseClient.auth.verifyOtp({
+      email,
+      token: otpCode,
+      type: 'signup'
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'OTP verification failed.');
+
+    if (error) {
+      throw new Error(error.message);
     }
-    // Set token on successful verification
-    if (data.accessToken) {
-      this.setToken(data.accessToken);
+
+    const sessionUser = data.user;
+    if (!sessionUser) {
+      throw new Error('Verification succeeded but no session was established.');
     }
-    return data;
+
+    // Retrieve full profile from profiles table
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionUser.id)
+      .maybeSingle();
+
+    const userData = {
+      id: sessionUser.id,
+      name: profile?.full_name || sessionUser.user_metadata?.full_name || '',
+      email: sessionUser.email,
+      role: profile?.role || 'student',
+      email_verified: true,
+      created_at: sessionUser.created_at
+    };
+
+    if (data.session) {
+      this.setToken(data.session.access_token);
+    }
+
+    return {
+      message: 'Account verified and active.',
+      accessToken: data.session?.access_token,
+      user: userData
+    };
   }
 
   static async resendOtp({ email }) {
-    const res = await fetch('/api/auth/resend-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+    const { error } = await supabaseClient.auth.resend({
+      type: 'signup',
+      email
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to resend verification code.');
+
+    if (error) {
+      throw new Error(error.message);
     }
-    return data;
+
+    return {
+      message: 'A new OTP code has been sent to your email.'
+    };
   }
 
   static async login({ email, password }) {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
     });
-    const data = await res.json();
-    if (!res.ok) {
-      if (data.unverified) {
-        // Return structured unverified state so frontend can switch to OTP entry screen
-        return data;
+
+    if (error) {
+      const errMsg = error.message.toLowerCase();
+      if (errMsg.includes('email not confirmed') || errMsg.includes('confirm your email')) {
+        // Trigger verification resend automatically
+        try {
+          await supabaseClient.auth.resend({ type: 'signup', email });
+        } catch (resendErr) {
+          console.warn("Auto-resend of signup confirmation code failed:", resendErr);
+        }
+        return {
+          unverified: true,
+          email
+        };
       }
-      throw new Error(data.error || 'Invalid email or password.');
+      throw new Error(error.message);
     }
-    if (data.accessToken) {
-      this.setToken(data.accessToken);
+
+    const sessionUser = data.user;
+    if (!sessionUser) {
+      throw new Error('Sign in succeeded but no user was returned.');
     }
-    return data;
+
+    // Fetch profile
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionUser.id)
+      .maybeSingle();
+
+    const userData = {
+      id: sessionUser.id,
+      name: profile?.full_name || sessionUser.user_metadata?.full_name || '',
+      email: sessionUser.email,
+      role: profile?.role || 'student',
+      email_verified: true,
+      created_at: sessionUser.created_at
+    };
+
+    if (data.session) {
+      this.setToken(data.session.access_token);
+    }
+
+    return {
+      message: 'Login successful.',
+      accessToken: data.session?.access_token,
+      user: userData
+    };
   }
 
   static async restoreSession() {
     try {
-      const res = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (data.accessToken) {
-        this.setToken(data.accessToken);
-        const meRes = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${data.accessToken}` }
-        });
-        if (meRes.ok) {
-          const profile = await meRes.json();
-          return profile.user;
-        }
-      }
-      return null;
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if (error || !session) return null;
+
+      const sessionUser = session.user;
+      if (!sessionUser) return null;
+
+      // Fetch profile
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
+
+      const userData = {
+        id: sessionUser.id,
+        name: profile?.full_name || sessionUser.user_metadata?.full_name || '',
+        email: sessionUser.email,
+        role: profile?.role || 'student',
+        email_verified: true,
+        created_at: sessionUser.created_at
+      };
+
+      this.setToken(session.access_token);
+      return userData;
     } catch (err) {
       console.warn("Session restoration failed:", err);
       return null;
@@ -113,13 +214,7 @@ export class SupabaseService {
 
   static async logout() {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getToken()}`
-        }
-      });
+      await supabaseClient.auth.signOut();
     } catch (err) {
       console.error("Logout request error:", err);
     }
@@ -128,29 +223,43 @@ export class SupabaseService {
   }
 
   static async forgotPassword({ email }) {
-    const res = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to submit password recovery request.');
+
+    if (error) {
+      throw new Error(error.message);
     }
-    return data;
+
+    return {
+      message: 'If this email exists in our system, an OTP code has been sent.'
+    };
   }
 
   static async resetPassword({ email, otpCode, newPassword }) {
-    const res = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otpCode, newPassword })
+    // 1. Verify OTP code for recovery type
+    const { error: verifyError } = await supabaseClient.auth.verifyOtp({
+      email,
+      token: otpCode,
+      type: 'recovery'
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to reset password.');
+
+    if (verifyError) {
+      throw new Error(verifyError.message);
     }
-    return data;
+
+    // 2. Perform the update password operation
+    const { error: updateError } = await supabaseClient.auth.updateUser({
+      password: newPassword
+    });
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    return {
+      message: 'Password reset successfully. You can now log in.'
+    };
   }
 
   static async getAllStudents() {
