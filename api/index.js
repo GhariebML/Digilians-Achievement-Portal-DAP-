@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
 import config from './config.js';
+import nodemailer from 'nodemailer';
 
 const app = express();
 
@@ -86,13 +87,55 @@ loadLocalDb();
 
 // ----------------------------------------------------
 // EMAIL TEMPLATES & MOCK EMAIL SENDER
+// Initialize SMTP Transporter if credentials exist
+let transporter = null;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = process.env.SMTP_PORT || 587;
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+
+if (smtpHost && smtpUser && smtpPass) {
+  try {
+    transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort),
+      secure: parseInt(smtpPort) === 465, // true for 465, false for other ports
+      auth: {
+        user: smtpUser,
+        pass: smtpPass
+      }
+    });
+    console.log(`📧 SMTP Transporter initialized: ${smtpHost}:${smtpPort}`);
+  } catch (err) {
+    console.error("Failed to initialize SMTP transporter:", err);
+  }
+} else {
+  console.log("ℹ️ SMTP credentials not found. Backend running in simulated email mode.");
+}
+
 // ----------------------------------------------------
-const sendMockEmail = (email, subject, htmlContent) => {
+const sendMockEmail = async (email, subject, htmlContent) => {
   console.log("==========================================");
-  console.log(`✉️ SIMULATED EMAIL SENT TO: ${email}`);
+  console.log(`✉️ EMAIL ACTION FOR: ${email}`);
   console.log(`Subject: ${subject}`);
   console.log("==========================================");
-  // Log message detail in server console
+
+  if (transporter) {
+    try {
+      const sender = process.env.SMTP_SENDER || `"Digilians Portal" <${smtpUser}>`;
+      const info = await transporter.sendMail({
+        from: sender,
+        to: email,
+        subject: subject,
+        html: htmlContent
+      });
+      console.log(`✉️ REAL EMAIL DELIVERED successfully: ${info.messageId}`);
+    } catch (err) {
+      console.error(`❌ SMTP delivery failed to ${email}:`, err.message);
+    }
+  } else {
+    console.log("[DEV MODE] Real email delivery skipped (SMTP not configured).");
+  }
 };
 
 const generateOtpEmailHtml = (fullName, otpCode) => {
