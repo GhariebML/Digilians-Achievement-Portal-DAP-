@@ -3,7 +3,7 @@ import React from 'react';
 export default function Footer() {
   return (
     <footer className="premium-footer">
-      <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '40px', marginBottom: '48px' }}>
+      <div className="saas-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '40px', marginBottom: '48px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <span style={{ fontSize: '20px', fontWeight: '800', letterSpacing: '-0.5px', color: '#FFFFFF' }}>Digilians</span>
@@ -52,7 +52,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="container" style={{ paddingTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', color: '#64748B', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="saas-container" style={{ paddingTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', color: '#64748B', flexWrap: 'wrap', gap: '16px' }}>
         <span>© 2026 Digilians Innovation Hub. All rights reserved.</span>
         <span>Designed & Developed by <span style={{ color: 'var(--accent)', fontWeight: '600' }}>Mohamed Gharieb</span></span>
         <span>Version 1.0 (High-Performance SPA)</span>

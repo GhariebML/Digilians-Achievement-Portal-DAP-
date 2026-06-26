@@ -223,23 +223,36 @@ body {
 }
 
 .saas-navbar__container {
-  max-width: 1340px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 1.25rem 2rem;
+  padding: 1.25rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+@media (min-width: 768px) {
+  .saas-navbar__container {
+    padding: 1.25rem 3rem;
+  }
+}
+
 .saas-main {
   min-height: calc(100vh - 180px);
+  padding: 2rem 0;
   animation: fadeIn var(--transition-smooth);
 }
 
 .saas-container {
-  max-width: 1340px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .saas-container {
+    padding: 0 3rem;
+  }
 }
 
 .saas-footer {
