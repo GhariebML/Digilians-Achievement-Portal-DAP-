@@ -722,3 +722,65 @@ body {
   justify-content: space-between;
   align-items: center;
 }
+
+/* Enhanced Premium Footer Styles */
+.premium-footer {
+  background: linear-gradient(180deg, #090e18 0%, #03060c 100%);
+  color: #94a3b8;
+  padding: 64px 0 32px 0;
+  margin-top: 80px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 5%;
+  right: 5%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), rgba(79, 70, 229, 0.3), transparent);
+}
+
+.footer-link {
+  color: #94a3b8;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.footer-link:hover {
+  color: #22d3ee;
+  transform: translateY(-1px);
+}
+
+.footer-list-item {
+  position: relative;
+  padding-left: 16px;
+  transition: all 0.25s ease;
+  list-style: none;
+  cursor: default;
+}
+
+.footer-list-item::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: rgba(6, 182, 212, 0.5);
+  font-size: 10px;
+  top: 2px;
+  transition: all 0.25s ease;
+}
+
+.footer-list-item:hover {
+  color: #ffffff;
+}
+
+.footer-list-item:hover::before {
+  color: #22d3ee;
+  transform: scale(1.2);
+}
+
