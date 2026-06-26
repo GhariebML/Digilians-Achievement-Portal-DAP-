@@ -143,17 +143,27 @@ export function AdminDashboard() {
     <div className="saas-container" style={{ padding: '2.5rem 0' }}>
       
       {/* 1. Header Banner */}
-      <div className="saas-card" style={{ padding: '2.25rem 2.5rem', marginBottom: '2.5rem', background: 'linear-gradient(135deg, #090d16 0%, #1e293b 100%)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+      <div className="saas-card" style={{ 
+        padding: '3rem 3rem', 
+        marginBottom: '3rem', 
+        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(99, 102, 241, 0.05) 100%)', 
+        border: '1px solid var(--border-color)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Subtle background glow effect */}
+        <div style={{ position: 'absolute', top: '-50%', right: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 0 }}></div>
+        
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--accent)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: '#fff', padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)' }}>
               <ShieldCheck size={14} /> Executive Admin Console
             </div>
-            <h1 style={{ fontSize: '2.15rem', fontWeight: 800, margin: '0 0 0.35rem 0', letterSpacing: '-0.025em', lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: '2.4rem', fontWeight: 900, margin: '0 0 0.5rem 0', letterSpacing: '-0.03em', lineHeight: 1.1, color: 'var(--text-main)' }}>
               Master Governance Dashboard
             </h1>
-            <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.9rem' }}>
-              Real-time analytics, student tracking, submission reviews, system audit logging, and reporting.
+            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem', maxWidth: '600px' }}>
+              Real-time analytics, student tracking, submission reviews, system audit logging, and automated reporting.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -371,15 +381,15 @@ export function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-                            <span style={{ flex: 1, padding: '0.5rem', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>{studentSubs.length}</div>
-                              <div style={{ fontSize: '0.675rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Submissions</div>
-                            </span>
-                            <span style={{ flex: 1, padding: '0.5rem', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--success)' }}>{winCount}</div>
-                              <div style={{ fontSize: '0.675rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Wins & MVPs</div>
-                            </span>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                            <div style={{ background: 'var(--bg-surface)', padding: '0.85rem', borderRadius: '0.75rem', textAlign: 'center', border: '1px solid var(--border-color)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                              <div style={{ fontSize: '1.35rem', fontWeight: 900, color: 'var(--primary)', lineHeight: 1 }}>{studentSubs.length}</div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginTop: '0.4rem' }}>Submissions</div>
+                            </div>
+                            <div style={{ background: 'var(--bg-surface)', padding: '0.85rem', borderRadius: '0.75rem', textAlign: 'center', border: '1px solid var(--border-color)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                              <div style={{ fontSize: '1.35rem', fontWeight: 900, color: 'var(--success)', lineHeight: 1 }}>{winCount}</div>
+                              <div style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginTop: '0.4rem' }}>Wins & MVPs</div>
+                            </div>
                           </div>
                         </div>
 
