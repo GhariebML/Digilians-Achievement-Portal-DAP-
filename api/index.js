@@ -127,12 +127,21 @@ const authenticateToken = async (req, res, next) => {
       }
     }
 
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const reqSupabase = createClient(config.supabaseUrl, config.supabaseKey, {
+      auth: { persistSession: false },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+
+    const { data: { user }, error } = await reqSupabase.auth.getUser();
     if (error || !user) {
       return res.status(403).json({ error: 'Invalid or expired access token.' });
     }
 
-    const { data: profile } = await supabase
+    const { data: profile } = await reqSupabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
@@ -144,6 +153,8 @@ const authenticateToken = async (req, res, next) => {
       role: profile?.role || 'student',
       name: profile?.full_name || user.user_metadata?.full_name || ''
     };
+
+    req.supabase = reqSupabase;
 
     next();
   } catch (err) {
@@ -218,7 +229,7 @@ app.get('/api/competitions', authenticateToken, async (req, res) => {
     let list = [];
     if (req.user.role === 'admin') {
       if (!config.isFallbackMode) {
-        const { data, error } = await supabase.from('competitions').select('*').order('created_at', { ascending: false });
+        const { data, error } = await req.supabase.from('competitions').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         list = data;
       } else {
@@ -227,7 +238,7 @@ app.get('/api/competitions', authenticateToken, async (req, res) => {
     } else {
       // Regular student sees only their own
       if (!config.isFallbackMode) {
-        const { data, error } = await supabase.from('competitions').select('*').eq('owner_id', req.user.userId).order('created_at', { ascending: false });
+        const { data, error } = await req.supabase.from('competitions').select('*').eq('owner_id', req.user.userId).order('created_at', { ascending: false });
         if (error) throw error;
         list = data;
       } else {
@@ -273,7 +284,7 @@ app.post('/api/competitions', authenticateToken, async (req, res) => {
 
     let saved = null;
     if (!config.isFallbackMode) {
-      const { data, error } = await supabase.from('competitions').insert([newRecord]).select().single();
+      const { data, error } = await req.supabase.from('competitions').insert([newRecord]).select().single();
       if (error) throw error;
       saved = data;
     } else {
@@ -314,7 +325,7 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
     // Fetch original record to check ownership
     let original = null;
     if (!config.isFallbackMode) {
-      const { data } = await supabase.from('competitions').select('*').eq('id', id).maybeSingle();
+      const { data } = await req.supabase.from('competitions').select('*').eq('id', id).maybeSingle();
       original = data;
     } else {
       original = localDb.competitions.find(c => c.id === id);
@@ -350,7 +361,7 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
 
     let updated = null;
     if (!config.isFallbackMode) {
-      const { data, error } = await supabase.from('competitions').update(updateFields).eq('id', id).select().single();
+      const { data, error } = await req.supabase.from('competitions').update(updateFields).eq('id', id).select().single();
       if (error) throw error;
       updated = data;
     } else {
@@ -398,7 +409,7 @@ async function deleteCompetitionHandler(req, res) {
     // Fetch original to check ownership
     let original = null;
     if (!config.isFallbackMode) {
-      const { data } = await supabase.from('competitions').select('*').eq('id', id).maybeSingle();
+      const { data } = await req.supabase.from('competitions').select('*').eq('id', id).maybeSingle();
       original = data;
     } else {
       original = localDb.competitions.find(c => c.id === id);
@@ -413,7 +424,7 @@ async function deleteCompetitionHandler(req, res) {
     }
 
     if (!config.isFallbackMode) {
-      const { error } = await supabase.from('competitions').delete().eq('id', id);
+      const { error } = await req.supabase.from('competitions').delete().eq('id', id);
       if (error) throw error;
     } else {
       localDb.competitions = localDb.competitions.filter(c => c.id !== id);
@@ -501,6 +512,32 @@ app.get('/api/admin/stats', authenticateToken, requireAdmin, async (req, res) =>
   } catch (err) {
     console.error("Admin stats fetch error:", err);
     res.status(500).json({ error: 'Failed to retrieve administrative statistics.' });
+  }
+});
+
+// Get Logged-in User's Activity Logs
+app.get('/api/logs', authenticateToken, async (req, res) => {
+  try {
+    let logs = [];
+    if (!config.isFallbackMode) {
+      const { data, error } = await req.supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('user_id', req.user.userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      logs = data;
+    } else {
+      logs = localDb.activity_logs
+        .filter(l => l.user_id === req.user.userId)
+        .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 100);
+    }
+    res.json(logs);
+  } catch (err) {
+    console.error("Fetch activity logs error:", err);
+    res.status(500).json({ error: 'Failed to retrieve activity logs.' });
   }
 });
 

@@ -20,12 +20,23 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Enable RLS on Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to check if user is admin (runs with SECURITY DEFINER to bypass RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = user_id AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 2. Create Profiles RLS Policies (Phase 7)
 DROP POLICY IF EXISTS "Allow authenticated users to read profiles" ON public.profiles;
 CREATE POLICY "Allow authenticated users to read profiles" 
 ON public.profiles FOR SELECT 
 TO authenticated 
-USING (id = auth.uid() OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+USING (id = auth.uid() OR public.is_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "Allow users to update their own profile" ON public.profiles;
 CREATE POLICY "Allow users to update their own profile" 
@@ -59,6 +70,10 @@ WHERE owner_id IS NULL AND user_id IS NOT NULL;
 -- Make owner_id NOT NULL after migration
 ALTER TABLE public.competitions ALTER COLUMN owner_id SET NOT NULL;
 
+-- Make legacy user_id column nullable and drop its foreign key constraint referencing public.users
+ALTER TABLE public.competitions ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE public.competitions DROP CONSTRAINT IF EXISTS competitions_user_id_fkey;
+
 -- Enable RLS on Competitions
 ALTER TABLE public.competitions ENABLE ROW LEVEL SECURITY;
 
@@ -67,7 +82,7 @@ DROP POLICY IF EXISTS "Users can select own competitions" ON public.competitions
 CREATE POLICY "Users can select own competitions" 
 ON public.competitions FOR SELECT 
 TO authenticated 
-USING (owner_id = auth.uid() OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "Users can insert own competitions" ON public.competitions;
 CREATE POLICY "Users can insert own competitions" 
@@ -79,13 +94,13 @@ DROP POLICY IF EXISTS "Users can update own competitions" ON public.competitions
 CREATE POLICY "Users can update own competitions" 
 ON public.competitions FOR UPDATE 
 TO authenticated 
-USING (owner_id = auth.uid() OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "Users can delete own competitions" ON public.competitions;
 CREATE POLICY "Users can delete own competitions" 
 ON public.competitions FOR DELETE 
 TO authenticated 
-USING (owner_id = auth.uid() OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "Allow service_role full control on competitions" ON public.competitions;
 CREATE POLICY "Allow service_role full control on competitions" 
