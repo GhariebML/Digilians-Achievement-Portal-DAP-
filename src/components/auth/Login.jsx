@@ -434,13 +434,6 @@ export function Login() {
           )}
         </div>
 
-        {authMode === 'login' && (
-          <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-            <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>🔐 Executive Admin Demo Credentials:</div>
-            <div><strong>Email:</strong> admin@digilians.gov.eg</div>
-            <div><strong>Password:</strong> Admin123!</div>
-          </div>
-        )}
       </div>
     </div>
   );
