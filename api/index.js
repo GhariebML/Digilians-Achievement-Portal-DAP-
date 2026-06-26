@@ -271,12 +271,16 @@ app.post('/api/competitions', authenticateToken, async (req, res) => {
       id: crypto.randomUUID(),
       owner_id: req.user.userId,
       competition_name: cleanData.competition_name,
+      project_name: cleanData.project_name || '',
       description: cleanData.description || '',
       organization: cleanData.organization || '',
       date: cleanData.date || new Date().toISOString().split('T')[0],
       category: cleanData.category || 'AI & Machine Learning',
       status: cleanData.status || 'Submitted',
       verification_link: cleanData.verification_link,
+      demo_link: cleanData.demo_link || '',
+      github_repo: cleanData.github_repo || '',
+      team_members: req.body.team_members || [],
       notes: cleanData.notes || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -350,6 +354,7 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
     } else {
       // Students can edit all fields except notes (feedback)
       if (cleanData.competition_name) updateFields.competition_name = cleanData.competition_name;
+      if (cleanData.project_name !== undefined) updateFields.project_name = cleanData.project_name;
       if (cleanData.description !== undefined) updateFields.description = cleanData.description;
       if (cleanData.organization !== undefined) updateFields.organization = cleanData.organization;
       if (cleanData.date) updateFields.date = cleanData.date;
@@ -357,6 +362,7 @@ app.put('/api/competitions/:id', authenticateToken, async (req, res) => {
       if (cleanData.verification_link) updateFields.verification_link = cleanData.verification_link;
       if (cleanData.demo_link !== undefined) updateFields.demo_link = cleanData.demo_link;
       if (cleanData.github_repo !== undefined) updateFields.github_repo = cleanData.github_repo;
+      if (req.body.team_members !== undefined) updateFields.team_members = req.body.team_members;
     }
 
     let updated = null;
