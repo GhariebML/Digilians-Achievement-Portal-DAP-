@@ -53,6 +53,26 @@ export class ExportService {
     try {
       const cleanData = competitions.map(c => this.getConsistentColumns(c));
       const worksheet = XLSX.utils.json_to_sheet(cleanData);
+      
+      // Auto-size columns for a more professional look
+      const colWidths = [
+        { wch: 20 }, // ID
+        { wch: 30 }, // Student Name
+        { wch: 35 }, // Email
+        { wch: 45 }, // Competition Name
+        { wch: 35 }, // Project Name
+        { wch: 30 }, // Organization
+        { wch: 20 }, // Category
+        { wch: 15 }, // Status
+        { wch: 18 }, // Date Submitted
+        { wch: 50 }, // Team Members
+        { wch: 45 }, // Demo Link
+        { wch: 45 }, // Proof
+        { wch: 40 }, // Notes
+        { wch: 18 }  // Last Update
+      ];
+      worksheet['!cols'] = colWidths;
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Competitions');
       XLSX.writeFile(workbook, filename);
