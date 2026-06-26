@@ -749,41 +749,53 @@ export function AdminDashboard() {
       {/* TAB 5: EXPORT SYSTEM */}
       {activeTab === 'export' && (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
-          <div className="saas-card" style={{ padding: '3.5rem 2rem', maxWidth: '680px', margin: '0 auto', textAlign: 'center' }}>
-            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
-              <FileSpreadsheet size={36} />
-            </div>
-            <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Export Data Reports</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem', maxWidth: '520px', margin: '0 auto 2.5rem auto', lineHeight: 1.6 }}>
-              Compile verified student profiles (email address, joined dates) and complete submissions sheets (status, Category, team lists, dates, proof links) into clean spreadsheet formats.
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-main)', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Data Intelligence & Exports</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
+              Compile verified student profiles and submission records into professional, board-ready formats. Select your preferred intelligence export below.
             </p>
+          </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-              <button 
-                onClick={handleExportCSV} 
-                className="saas-button saas-button--outline" 
-                style={{ padding: '0.85rem 1.75rem', fontSize: '0.95rem' }}
-              >
-                <Download size={18} /> 
-                <span>Download CSV File</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
+            {/* CSV Export Card */}
+            <div className="saas-card stat-card stat-card--clickable" onClick={handleExportCSV} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FileSpreadsheet size={32} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 0.5rem 0' }}>Raw Data (CSV)</h3>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>Clean, comma-separated values perfect for programmatic ingestion or database imports.</p>
+              </div>
+              <button className="saas-button saas-button--outline" style={{ marginTop: 'auto', width: '100%' }}>
+                <Download size={16} /> Download CSV
               </button>
-              
-              <button 
-                onClick={handleExportExcel} 
-                className="saas-button saas-button--outline" 
-                style={{ padding: '0.85rem 1.75rem', fontSize: '0.95rem' }}
-              >
-                <Download size={18} /> 
-                <span>Download Excel Sheet</span>
-              </button>
+            </div>
 
-              <button 
-                onClick={handleExportPDF} 
-                className="saas-button saas-button--primary" 
-                style={{ padding: '0.85rem 1.75rem', fontSize: '0.95rem' }}
-              >
-                <FileText size={18} /> 
-                <span>Download PDF Summary</span>
+            {/* Excel Export Card */}
+            <div className="saas-card stat-card stat-card--clickable" onClick={handleExportExcel} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FileSpreadsheet size={32} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 0.5rem 0' }}>Spreadsheet (Excel)</h3>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>Formatted tabular data with native column types, ideal for filtering and pivot tables.</p>
+              </div>
+              <button className="saas-button saas-button--outline" style={{ marginTop: 'auto', width: '100%', borderColor: '#10b981', color: '#10b981' }}>
+                <Download size={16} /> Download XLSX
+              </button>
+            </div>
+
+            {/* PDF Export Card */}
+            <div className="saas-card stat-card stat-card--clickable" onClick={handleExportPDF} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1rem', border: '2px solid var(--primary)', borderRadius: 'var(--radius-lg)', background: 'var(--bg-surface)' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FileText size={32} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 0.5rem 0' }}>Executive Summary</h3>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>A highly polished, branded PDF report containing statistical overviews and lists.</p>
+              </div>
+              <button className="saas-button saas-button--primary" style={{ marginTop: 'auto', width: '100%', boxShadow: '0 4px 14px rgba(99, 102, 241, 0.3)' }}>
+                <Download size={16} /> Generate PDF Report
               </button>
             </div>
           </div>
