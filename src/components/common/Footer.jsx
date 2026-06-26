@@ -56,6 +56,7 @@ export default function Footer() {
 
       <div className="container" style={{ paddingTop: '24px', borderTop: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', color: '#64748B' }}>
         <span>© 2026 Digilians Innovation Hub. All rights reserved.</span>
+        <span>تم تصميم الموقع بالكامل بواسطة <span style={{ color: 'var(--accent)', fontWeight: '600' }}>Mohamed Gharieb</span></span>
         <span>Version 1.0 (High-Performance SPA)</span>
       </div>
     </footer>
