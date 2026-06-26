@@ -4,7 +4,7 @@
  */
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export class ExportService {
   static sanitizeCell(val) {
@@ -143,7 +143,7 @@ export class ExportService {
       doc.setTextColor(30, 41, 59);
       doc.text('General Performance Overview', 40, 180);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: 195,
         head: [['Metric', 'Value', 'Status']],
         body: [
@@ -174,7 +174,7 @@ export class ExportService {
         c.team_members && Array.isArray(c.team_members) ? String(c.team_members.length) : '0'
       ]);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 55,
         head: [['Competition', 'Project', 'Category', 'Leader', 'Status', 'Team Size']],
         body: tableData,
