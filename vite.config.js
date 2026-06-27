@@ -15,6 +15,17 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  build: {
+    target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          icons: ['lucide-react'],
+          supabase: ['@supabase/supabase-js']
+        }
+      }
+    }
   }
 })
-
