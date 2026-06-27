@@ -169,13 +169,16 @@ export function Login() {
   // Render Verification Screen
   if (verificationEmail) {
     return (
-      <div className="saas-container" style={{ padding: '6rem 0', maxWidth: '480px', margin: '0 auto' }}>
-        <div className="saas-card" style={{ padding: '3rem', position: 'relative' }}>
+      <div className="auth-page-wrapper">
+        <div className="auth-bg-blob auth-bg-blob-1"></div>
+        <div className="auth-bg-blob auth-bg-blob-2"></div>
+        
+        <div className="auth-glass-card">
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <div style={{ display: 'inline-flex', padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+            <div className="auth-icon-wrapper">
               <Clock size={32} />
             </div>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+            <h2 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem', letterSpacing: '-0.03em' }}>
               Verify Your Account
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5 }}>
@@ -196,17 +199,17 @@ export function Login() {
           )}
 
           <form onSubmit={handleVerifyOtpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>6-Digit OTP Code</label>
-              <div style={{ position: 'relative' }}>
-                <Key size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <div className="auth-input-group">
+              <label>6-Digit OTP Code</label>
+              <div className="auth-input-wrapper">
+                <Key size={18} />
                 <input 
                   type="text" 
                   maxLength="6"
                   value={otpCode} 
                   onChange={e => setOtpCode(e.target.value.replace(/\D/g,''))} 
-                  className="saas-input" 
-                  style={{ paddingLeft: '2.75rem', letterSpacing: '0.5em', textAlign: 'center', fontSize: '1.25rem', fontWeight: 800 }} 
+                  className="auth-input" 
+                  style={{ paddingLeft: '3.25rem', letterSpacing: '0.5em', textAlign: 'center', fontSize: '1.25rem', fontWeight: 800 }} 
                   placeholder="000000" 
                   required 
                 />
@@ -219,8 +222,7 @@ export function Login() {
             <button 
               type="submit" 
               disabled={loading || otpAttemptsLeft === 0} 
-              className="saas-button saas-button--primary" 
-              style={{ padding: '0.875rem', width: '100%', fontSize: '1rem', justifyContent: 'center' }}
+              className="saas-button auth-submit-btn" 
             >
               {loading ? 'Verifying OTP...' : 'Verify OTP & Activate'} <CheckCircle2 size={18} />
             </button>
@@ -258,15 +260,18 @@ export function Login() {
 
   // Render Login / Register / Forgot Password forms
   return (
-    <div className="saas-container" style={{ padding: '5rem 0', maxWidth: '480px', margin: '0 auto' }}>
-      <div className="saas-card" style={{ padding: '3rem' }}>
+    <div className="auth-page-wrapper">
+      <div className="auth-bg-blob auth-bg-blob-1"></div>
+      <div className="auth-bg-blob auth-bg-blob-2"></div>
+
+      <div className="auth-glass-card">
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', padding: '1rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--secondary)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+          <div className="auth-icon-wrapper">
             {authMode === 'register' ? <User size={32} /> : <Shield size={32} />}
           </div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+          <h2 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem', letterSpacing: '-0.03em' }}>
             {authMode === 'register' && 'Create Student Account'}
             {authMode === 'login' && 'Secure Enterprise Portal'}
             {authMode === 'forgot-password' && 'Password Recovery'}
@@ -293,36 +298,36 @@ export function Login() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Registration fields */}
           {authMode === 'register' && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Full Name</label>
-              <div style={{ position: 'relative' }}>
-                <User size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="Ahmed Hassan" required />
+            <div className="auth-input-group">
+              <label>Full Name</label>
+              <div className="auth-input-wrapper">
+                <User size={18} />
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="auth-input" placeholder="Ahmed Hassan" required />
               </div>
             </div>
           )}
 
           {/* Email field (all forms) */}
           {(authMode !== 'forgot-password' || forgotStep === 1) && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Email Address</label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder={authMode === 'register' ? "student@digilians.gov.eg" : "name@digilians.gov.eg"} required />
+            <div className="auth-input-group">
+              <label>Email Address</label>
+              <div className="auth-input-wrapper">
+                <Mail size={18} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="auth-input" placeholder={authMode === 'register' ? "student@digilians.gov.eg" : "name@digilians.gov.eg"} required />
               </div>
             </div>
           )}
 
           {/* Login Password fields */}
           {authMode === 'login' && (
-            <div>
+            <div className="auth-input-group">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Password</label>
-                <button type="button" onClick={() => { setAuthMode('forgot-password'); setForgotStep(1); }} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>Forgot Password?</button>
+                <label style={{ marginBottom: 0 }}>Password</label>
+                <button type="button" onClick={() => { setAuthMode('forgot-password'); setForgotStep(1); }} className="auth-link" style={{ fontSize: '0.8rem' }}>Forgot Password?</button>
               </div>
-              <div style={{ position: 'relative' }}>
-                <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="••••••••" required />
+              <div className="auth-input-wrapper">
+                <Lock size={18} />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="auth-input" placeholder="••••••••" required />
               </div>
             </div>
           )}
@@ -330,18 +335,18 @@ export function Login() {
           {/* Registration Password & Confirm fields */}
           {authMode === 'register' && (
             <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="••••••••" required />
+              <div className="auth-input-group">
+                <label>Password</label>
+                <div className="auth-input-wrapper">
+                  <Lock size={18} />
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="auth-input" placeholder="••••••••" required />
                 </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Confirm Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="••••••••" required />
+              <div className="auth-input-group">
+                <label>Confirm Password</label>
+                <div className="auth-input-wrapper">
+                  <Lock size={18} />
+                  <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="auth-input" placeholder="••••••••" required />
                 </div>
               </div>
             </>
@@ -350,46 +355,37 @@ export function Login() {
           {/* Forgot Password Reset step fields */}
           {authMode === 'forgot-password' && forgotStep === 2 && (
             <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Recovery OTP Code</label>
-                <div style={{ position: 'relative' }}>
-                  <Key size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="text" maxLength="6" value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/\D/g,''))} className="saas-input" style={{ paddingLeft: '2.75rem', letterSpacing: '0.25em', textAlign: 'center', fontWeight: 800 }} placeholder="000000" required />
+              <div className="auth-input-group">
+                <label>Recovery OTP Code</label>
+                <div className="auth-input-wrapper">
+                  <Key size={18} />
+                  <input type="text" maxLength="6" value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/\D/g,''))} className="auth-input" style={{ paddingLeft: '3.25rem', letterSpacing: '0.25em', textAlign: 'center', fontWeight: 800 }} placeholder="000000" required />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                   <button 
                     type="button"
                     onClick={handleResendForgotCode} 
                     disabled={loading || resendCooldown > 0}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      color: (loading || resendCooldown > 0) ? 'var(--text-muted)' : 'var(--primary)', 
-                      fontWeight: 700, 
-                      cursor: (loading || resendCooldown > 0) ? 'not-allowed' : 'pointer', 
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem'
-                    }}
+                    className="auth-link"
+                    style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: resendCooldown > 0 ? 'var(--text-muted)' : '' }}
                   >
                     <RefreshCw size={12} className={resendCooldown > 0 ? 'animate-spin' : ''} /> 
                     {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Recovery Code'}
                   </button>
                 </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>New Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="••••••••" required />
+              <div className="auth-input-group">
+                <label>New Password</label>
+                <div className="auth-input-wrapper">
+                  <Lock size={18} />
+                  <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="auth-input" placeholder="••••••••" required />
                 </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Confirm New Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} className="saas-input" style={{ paddingLeft: '2.75rem' }} placeholder="••••••••" required />
+              <div className="auth-input-group">
+                <label>Confirm New Password</label>
+                <div className="auth-input-wrapper">
+                  <Lock size={18} />
+                  <input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} className="auth-input" placeholder="••••••••" required />
                 </div>
               </div>
             </>
@@ -412,7 +408,7 @@ export function Login() {
           )}
 
           {/* Submit Button */}
-          <button type="submit" disabled={loading} className="saas-button saas-button--primary" style={{ padding: '0.875rem', width: '100%', marginTop: '0.5rem', fontSize: '1rem', justifyContent: 'center' }}>
+          <button type="submit" disabled={loading} className="saas-button auth-submit-btn">
             {loading ? 'Processing...' : (
               authMode === 'register' ? 'Register Account' : 
               authMode === 'login' ? 'Secure Sign In' : 
@@ -422,15 +418,15 @@ export function Login() {
         </form>
 
         {/* Footer switcher links */}
-        <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '2.5rem', paddingTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+        <div className="auth-footer-links">
           {authMode === 'login' && (
-            <>New student innovator? <button onClick={() => setAuthMode('register')} style={{ background: 'none', border: 'none', color: 'var(--secondary)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Create Student Account</button></>
+            <>New student innovator? <button onClick={() => setAuthMode('register')} className="auth-link">Create Student Account</button></>
           )}
           {authMode === 'register' && (
-            <>Already have an account? <button onClick={() => setAuthMode('login')} style={{ background: 'none', border: 'none', color: 'var(--secondary)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Sign In</button></>
+            <>Already have an account? <button onClick={() => setAuthMode('login')} className="auth-link">Sign In</button></>
           )}
           {authMode === 'forgot-password' && (
-            <button onClick={() => setAuthMode('login')} style={{ background: 'none', border: 'none', color: 'var(--secondary)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><ArrowLeft size={14} /> Back to Sign In</button>
+            <button onClick={() => setAuthMode('login')} className="auth-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><ArrowLeft size={14} /> Back to Sign In</button>
           )}
         </div>
 
