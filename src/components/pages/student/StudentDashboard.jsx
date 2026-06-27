@@ -319,28 +319,76 @@ export function StudentDashboard() {
       {/* 4. Content Displays */}
       {filteredSubmissions.length === 0 ? (
         
-        /* Elegant Empty State */
-        <div className="saas-card" style={{ padding: '5.5rem 2rem', textAlign: 'center', background: 'var(--bg-surface)' }}>
-          <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' }}>
-            <Award size={36} />
+        /* Premium Empty State */
+        <div className="saas-card" style={{ 
+          padding: '6rem 2rem', 
+          textAlign: 'center', 
+          background: 'var(--bg-surface)',
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '1px solid rgba(99, 102, 241, 0.1)'
+        }}>
+          {/* Abstract Glow Background */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '400px',
+            height: '400px',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.05) 0%, rgba(99,102,241,0) 70%)',
+            zIndex: 0,
+            pointerEvents: 'none'
+          }}></div>
+
+          <div style={{ 
+            width: '88px', 
+            height: '88px', 
+            borderRadius: '50%', 
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)', 
+            color: 'var(--primary)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto 2rem auto',
+            position: 'relative',
+            zIndex: 1,
+            boxShadow: '0 0 0 8px rgba(99, 102, 241, 0.03)'
+          }}>
+            <Award size={42} />
           </div>
-          <h3 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-            {competitions.length === 0 ? 'No Achievements Logged Yet' : 'No Submissions Match Filters'}
+          <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
+            {competitions.length === 0 ? 'Your Professional Portfolio Starts Here' : 'No Submissions Match Filters'}
           </h3>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 2rem auto', fontSize: '0.925rem', lineHeight: 1.5 }}>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto 2.5rem auto', fontSize: '1rem', lineHeight: 1.6, position: 'relative', zIndex: 1 }}>
             {competitions.length === 0 
-              ? "Start building your verified academic and innovation portfolio. Register your first Hackathon, Ideathon, or project contest to begin."
+              ? "Join the Digilians portal to verify your academic achievements. Log your first Hackathon, Ideathon, or competition to start building your public record."
               : "Try refining your search terms or reset the filters to see your submitted competitions."
             }
           </p>
           {competitions.length === 0 ? (
-            <button onClick={handleOpenAdd} className="saas-button saas-button--primary" style={{ padding: '0.75rem 1.75rem' }}>
-              <PlusCircle size={18} /> Submit Your First Contest
+            <button 
+              onClick={handleOpenAdd} 
+              className="saas-button saas-button--primary" 
+              style={{ 
+                padding: '0.85rem 2rem', 
+                fontSize: '1rem', 
+                position: 'relative', 
+                zIndex: 1,
+                boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)'
+              }}
+            >
+              <PlusCircle size={20} /> Submit Your First Project
             </button>
           ) : (
             <button 
               onClick={() => { setSearchTerm(''); setStatusFilter('ALL'); setCategoryFilter('ALL'); }} 
               className="saas-button saas-button--secondary"
+              style={{ position: 'relative', zIndex: 1 }}
             >
               Reset All Filters
             </button>
