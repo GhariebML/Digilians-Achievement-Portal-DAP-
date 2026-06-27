@@ -987,13 +987,17 @@ body {
   background: none;
   border: none;
   color: var(--primary);
-  content: '✦';
-  position: absolute;
-  left: 0;
-  color: rgba(6, 182, 212, 0.5);
-  font-size: 10px;
-  top: 2px;
-  transition: all 0.25s ease;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.25rem;
+  font-size: inherit;
+  transition: color 0.2s ease;
+}
+
+.auth-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
 }
 
 .footer-list-item:hover {
