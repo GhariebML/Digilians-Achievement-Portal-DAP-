@@ -154,7 +154,7 @@ export function AdminDashboard() {
         {/* Subtle background glow effect */}
         <div style={{ position: 'absolute', top: '-50%', right: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)', filter: 'blur(40px)', zIndex: 0 }}></div>
         
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div className="dashboard-header-flex" style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: '#fff', padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)' }}>
               <ShieldCheck size={14} /> Executive Admin Console
@@ -482,7 +482,7 @@ export function AdminDashboard() {
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           
           {/* Submission search, status filter, sorting bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem', marginBottom: '2rem' }}>
+          <div className="filter-bar-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem', marginBottom: '2rem' }}>
             <div style={{ position: 'relative', flex: '1', minWidth: '260px', maxWidth: '380px' }}>
               <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input 
@@ -539,7 +539,7 @@ export function AdminDashboard() {
           ) : (
             
             /* Submissions reviews list table with collapsible details row */
-            <div className="saas-table-container">
+            <div className="table-responsive-wrapper saas-table-container">
               <table className="saas-table">
                 <thead>
                   <tr>

@@ -547,6 +547,7 @@ body {
 
 .saas-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;
@@ -986,12 +987,107 @@ body {
   background: none;
   border: none;
   color: var(--primary);
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  transition: color 0.2s ease;
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: rgba(6, 182, 212, 0.5);
+  font-size: 10px;
+  top: 2px;
+  transition: all 0.25s ease;
 }
-.auth-link:hover {
-  color: var(--primary-hover);
-  text-decoration: underline;
+
+.footer-list-item:hover {
+  color: #ffffff;
+}
+
+.footer-list-item:hover::before {
+  color: #22d3ee;
+  transform: scale(1.2);
+}
+
+
+
+/* =========================================
+   RESPONSIVE UTILITY CLASSES
+   ========================================= */
+
+/* Table Scroll Container for Mobile */
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border-color);
+  background: var(--bg-surface);
+}
+
+.table-responsive-wrapper table {
+  min-width: 900px; /* Forces horizontal scroll on small devices */
+  width: 100%;
+}
+
+/* Responsive Grids */
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .responsive-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Mobile Overrides */
+@media (max-width: 767px) {
+  .saas-card {
+    padding: 1.25rem !important; /* Smaller padding on mobile */
+  }
+  
+  .saas-main {
+    padding: 1rem 0;
+  }
+
+  /* Make auth container stack on mobile */
+  .auth-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .auth-layout__visual {
+    display: none !important; /* Hide abstract visual on small screens to save space */
+  }
+  .auth-layout__form {
+    padding: 2rem 1.5rem !important;
+  }
+
+  /* Dashboard Header Stacking */
+  .dashboard-header-flex {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+  .dashboard-header-flex > div {
+    width: 100%;
+  }
+  .dashboard-header-flex button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Table actions spacing on mobile */
+  .table-actions {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.5rem;
+  }
+  
+  /* Filter bar on dashboards */
+  .filter-bar-flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .filter-bar-flex > div {
+    width: 100% !important;
+    max-width: none !important;
+  }
 }

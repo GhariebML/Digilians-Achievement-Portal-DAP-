@@ -129,7 +129,7 @@ export function StudentDashboard() {
       
       {/* 1. Header Banner */}
       <div className="saas-card" style={{ padding: '2.25rem 2.5rem', marginBottom: '2.5rem', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', color: '#ffffff', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div className="dashboard-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <div className="user-avatar-initials" style={{ width: '76px', height: '76px', fontSize: '2.25rem', border: '3px solid rgba(255,255,255,0.1)' }}>
               {currentUser.name ? currentUser.name[0].toUpperCase() : 'S'}
@@ -219,7 +219,7 @@ export function StudentDashboard() {
 
       {/* 3. Controls & Filter Bar */}
       <div className="saas-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
+        <div className="filter-bar-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
           
           {/* Search Box */}
           <div style={{ position: 'relative', flex: '1', minWidth: '260px', maxWidth: '380px' }}>
@@ -547,7 +547,7 @@ export function StudentDashboard() {
       ) : (
 
         /* Table/List Display View */
-        <div className="saas-table-container">
+        <div className="table-responsive-wrapper saas-table-container">
           <table className="saas-table">
             <thead>
               <tr>
@@ -613,7 +613,7 @@ export function StudentDashboard() {
                         </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                        <div className="table-actions" style={{ display: 'inline-flex', gap: '0.4rem' }}>
                           <button onClick={() => handleOpenEdit(comp)} className="saas-button saas-button--secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}>
                             <Edit3 size={13} />
                           </button>

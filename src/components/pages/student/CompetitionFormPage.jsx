@@ -185,7 +185,7 @@ export function CompetitionFormPage() {
             <span style={{ padding: '0.25rem 0.75rem', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, marginLeft: 'auto' }}>Step 1 of 3</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.75rem' }}>
+          <div className="responsive-grid-2">
             <div style={{ gridColumn: 'span 2' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Competition / Hackathon Name *</label>
               <div style={{ position: 'relative' }}>
@@ -316,7 +316,7 @@ export function CompetitionFormPage() {
             <span style={{ padding: '0.25rem 0.75rem', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, marginLeft: 'auto' }}>Step 2 of 3</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.75rem' }}>
+          <div className="responsive-grid-2">
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Leader Name *</label>
               <div style={{ position: 'relative' }}>
@@ -409,7 +409,7 @@ export function CompetitionFormPage() {
                     </button>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                  <div className="responsive-grid-2">
                     <div>
                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Member Name *</label>
                       <input 
