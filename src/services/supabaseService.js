@@ -43,27 +43,54 @@ export class SupabaseService {
       throw new Error('Passwords do not match.');
     }
 
-    const { data, error } = await supabaseClient.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
-          role: 'student'
-        }
-      }
-    });
+    let authData = null;
+    let authError = null;
 
-    if (error) {
-      throw new Error(error.message);
+    try {
+      const res = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            role: 'student'
+          }
+        }
+      });
+      authData = res.data;
+      authError = res.error;
+    } catch (e) {
+      authError = e;
     }
 
-    // Return simulated response for UI compatibility
+    // If Supabase throws a 500 error because the email provider failed to send the email,
+    // the user is often still successfully created in the database!
+    // Since "Confirm email" is disabled, we can just try to log them in directly to bypass the crash.
+    if (authError) {
+      const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      // If login succeeds, it means the account was created despite the 500 error!
+      if (loginData && loginData.session) {
+        return {
+          message: 'Registration successful.',
+          email,
+          user: loginData.user,
+          session: loginData.session
+        };
+      }
+      
+      // If login also fails, throw the original error
+      throw new Error(authError.message || 'Error during registration');
+    }
+
     return {
-      message: 'Registration successful. Verification OTP sent to your email.',
+      message: 'Registration successful.',
       email,
-      otpCode: undefined, // Suppressed in production, handled by Supabase Auth email templates
-      user: data.user
+      user: authData?.user,
+      session: authData?.session
     };
   }
 
