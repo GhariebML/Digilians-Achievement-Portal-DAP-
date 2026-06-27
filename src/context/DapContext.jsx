@@ -122,11 +122,18 @@ export function DapProvider({ children }) {
   const handleRegister = useCallback(async (name, email, password, confirmPassword) => {
     try {
       const res = await SupabaseService.registerStudent({ name, email, password, confirmPassword });
+      
+      // If email confirmation is disabled in Supabase, a session is returned immediately.
+      if (res.session) {
+        setCurrentUser(res.user);
+        localStorage.setItem('dap_current_user', JSON.stringify(res.user));
+        showToast('Registration successful! Welcome to the portal.', 'success');
+        setActiveView('student-dashboard');
+        return { success: true, needsVerification: false };
+      }
+
       setVerificationEmail(email);
       showToast('Registration successful! OTP verification code sent.', 'success');
-      if (res.otpCode) {
-        showToast(`[DEV MODE] OTP Code is: ${res.otpCode}`, 'info');
-      }
       return { success: true, needsVerification: true };
     } catch (err) {
       showToast(err.message, 'error');
